@@ -13,16 +13,16 @@ At the core of Howso is the concept of a Trainee, a collection of data elements 
 - Synthesize data that maintains the same feature relationships of the original data while maintaining privacy
 
 # Getting Started
-## Install Howso Engine:
+## Install Howso Engine
 Howso Engine has repositories for both Python users or those who prefer Shell. If you are not familiar with the difference, we recommend starting with Python. 
 
-[Python Engine Repository](https://github.com/howsoai/howso-engine-py)
+[Engine Repository (Python)](https://github.com/howsoai/howso-engine-py)
 
-[Shell Engine Repository](https://github.com/howsoai/howso-engine) 
+[Engine Repository (Shell)](https://github.com/howsoai/howso-engine) 
 
 > Installation instructions can be found in the README.md file of the Engine repository. 
 
-## Explore Recipes:
+## Explore Recipes
 Recipes illustrate important concepts and show how these tools can be used. Start with our classic collection in [Howso Engine Recipes Repository](https://github.com/howsoai/howso-engine-recipes) using Jupiter notebooks.
 
 For those interested in reinforcement learning, check out [Howso Reinforcement Learning Recipes](https://github.com/howsoai/howso-engine-rl-recipes).
