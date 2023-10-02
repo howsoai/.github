@@ -2,15 +2,15 @@
   <img src="https://howso.com/assets/images/Howso_Readme.svg">
 </div>
 
-The Howso Engine&trade; is a natively and fully explainable ML engine and toolbox, 
-serving as an alternative to black box AI. Its core features give users data 
-exploration and machine learning capabilities through the creation and use
-of Trainees that help users store, explore, and analyze the relationships in
-their data. Howso&trade; leverages an instance-based learning approach with
-strong ties to the [k-nearest neighbors
-algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) and
-[information theory](https://en.wikipedia.org/wiki/Information_theory) to scale
-for real world applications.
+The Howso Engine™ is a natively and fully explainable ML engine, serving as an alternative to black box AI neural networks. Its core functionality gives users data exploration and machine learning capabilities through the creation and use of Trainees that help users store, explore, and analyze the relationships in their data, as well as make understandable, debuggable predictions. Howso leverages an instance-based learning approach with strong ties to the k-nearest neighbors algorithm and information theory to scale for real world applications.
+
+At the core of Howso is the concept of a Trainee, a collection of data elements that comprise knowledge. In traditional ML, this is typically referred to as a model, but a Trainee is original training data coupled with metadata, parameters, details of feature attributes, with data lineage and provenance. Unlike traditional ML, Trainees are designed to be versatile, a single model that after training a dataset can do the following without the need to retrain:
+
+- Perform classification on any target feature using any set of input features
+- Perform regression on any target feature using any set of input features
+- Perform anomaly detection based on any set of features
+- Measure feature importance for predicting any target feature
+- Synthesize data that maintains the same feature relationships of the original data while maintaining privacy
 
 # Getting Started
 ## Install Howso Engine:
