@@ -2,7 +2,7 @@
 <picture>
  <source media="(prefers-color-scheme: dark)" srcset="https://cdn.howso.com/img/howso/1/svg/logo-gradient-light.svg" width="33%">
  <source media="(prefers-color-scheme: light)" srcset="https://cdn.howso.com/img/howso/1/svg/logo-gradient-dark.svg" width="33%">
- <img alt="YOUR-ALT-TEXT" src="https://cdn.howso.com/img/howso/1/png/logo-gradient-light-bg.png" width="33%">
+ <img alt="Howso" src="https://cdn.howso.com/img/howso/1/png/logo-gradient-light-bg.png" width="33%">
 </picture>
 </div>
 
