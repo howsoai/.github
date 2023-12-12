@@ -1,0 +1,122 @@
+name: Build
+run-name: "Branch Build (${{ github.run_attempt }}.${{ github.run_number }}) - ${{ github.ref_name }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      ####################################################################
+      # Remove the inputs below that do not apply to this project; e.g., #
+      # if preparing this workflow for howso-synthesizer-py, you would   #
+      # only keep 'amalgam-lang-py' and 'howso-engine-py'.               #
+      #                                                                  #
+      # For each removed input, also remove the corresponding parameter  #
+      # under jobs.metadata.with.                                        #
+      ####################################################################
+      amalgam-lang-py-build:
+        description: |
+          (Optional) amalgam-lang-py build or version number. Defaults to pinned release.
+          
+          Examples:
+            '6807310618',
+            'https://github.com/howsoai/amalgam-lang-py/actions/runs/6807310618',
+            '4.0.1'
+        required: false
+        type: string
+      howso-engine-py-build:
+        description: |
+          (Optional) howso-engine-py build or version number. Defaults to pinned release.
+        required: false
+        type: string
+      howso-synthesizer-py-build:
+        description: |
+          (Optional) howso-synthesizer-py build or version number. Defaults to pinned release.
+        required: false
+        type: string
+      howso-validator-py-build:
+        description: |
+          (Optional) howso-validator-py build or version number. Defaults to pinned release.
+        required: false
+        type: string
+      howso-validator-enterprise-py-build:
+        description: |
+          (Optional) howso-validator-enterprise-py build or version number. Defaults to pinned release.
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      payload:
+        required: false
+        type: string
+      build-type:
+        required: false
+        type: string
+      optional-release-tag:
+        required: false
+        type: string
+
+jobs:
+
+  metadata:
+    #########################################################################
+    # METADATA JOB: Parses inputs depending on build type and sets version  #
+    # and dependency details.                                               #
+    #                                                                       #
+    # OUTPUTS:                                                              #
+    #   version: release tag, PR build version, branch build version        #
+    #   upstream-details: JSON of all dependency details, e.g.,             #
+    #     {howso-engine-py: {run-type: release, run-id: 123456, url: ... }} #
+    #########################################################################
+    uses: howsoai/.github/.github/workflows/set-metadata.yml
+    secrets: inherit
+    with:
+      # Remove unused parameters
+      payload: ${{ inputs.payload }}
+      build-type: ${{ inputs.build-type }}
+      optional-release-tag: ${{ inputs.optional-release-tag }}
+      amalgam-lang-py-build: ${{ inputs.amalgam-lang-py-build }}
+      howso-engine-py-build: ${{ inputs.howso-engine-py-build }}
+      howso-validator-py-build: ${{ inputs.howso-validator-py-build }}
+      howso-validator-enterprise-py-build: ${{ inputs.howso-validator-enterprise-py-build }}
+      howso-synthesizer-py-build: ${{ inputs.howso-synthesizer-py-build }}
+
+  #############################################################
+  # TODO: implement additional build jobs for this project    #
+  # Example Pytest and Release jobs are below.                #
+  #############################################################
+  pytest-linux-3-8-st:
+    needs: ['metadata']
+    if: inputs.build-type != 'PR'
+    uses: howsoai/.github/.github/workflows/pytest.yml
+    secrets: inherit
+    with:
+      platform: 'howso-ubuntu-runner-latest'
+      platform-pretty: 'Linux'
+      python-version: '3.8'
+      workers: '16'
+      config-fp: './config/howso-st-debug.yml'
+      config-pretty: 'Amalgam -st'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+
+  release:
+    if: inputs.build-type == 'release'
+    environment:
+      name: PyPi
+    permissions:
+      contents: write
+    needs: ['metadata', 'pytest-linux-3-8-st']
+    runs-on: ubuntu-latest
+    steps:
+    - name: Create Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ needs.metadata.outputs.version }}
+        commit: ${{ github.sha }}
+        name: "example-release ${{ needs.metadata.outputs.version }}"
+        artifactErrorsFailBuild: true
+        generateReleaseNotes: true
+        makeLatest: legacy
+        artifacts: "dist/*.whl"
+        artifactContentType: application/gzip

@@ -1,0 +1,192 @@
+name: Reusable WF - Run Pytest
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      platform-pretty:
+        required: true
+        type: string
+      config-fp:
+        required: false
+        type: string
+      config-pretty:
+        required: false
+        type: string
+        default: "[no config]"
+      python-version:
+        required: true
+        type: string
+      upstream-details:
+        required: false
+        type: string
+      workers:
+        required: false
+        type: string
+        default: "16"
+      pmlb-cache:
+        required: false
+        type: string
+        default: "false"
+      telemetry:
+        required: false
+        type: string
+        default: "true"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  test:
+    name: Pytest (${{ inputs.python-version }}, ${{inputs.platform-pretty}}, ${{ inputs.config-pretty }})
+    runs-on: ${{ inputs.platform }}
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Collect Workflow Telemetry
+        if: inputs.telemetry == 'true'
+        uses: catchpoint/workflow-telemetry-action@v1
+        with:
+          comment_on_pr: off
+          proc_trace_chart_show: off
+          proc_trace_table_show: off
+
+      - name: Pull GitHub cache
+        if: inputs.pmlb-cache == 'true'
+        id: cache
+        uses: actions/cache@v3
+        env:
+          cache-name: dataset-cache-${{ inputs.platform-pretty }}
+        with:
+          path: ~/dataset_cache
+          key: dataset-cache-${{ inputs.platform-pretty }}
+      
+      - name: Setup PMLB Cache
+        if: inputs.pmlb-cache == 'true'
+        run: |
+          ls -l ~/dataset_cache
+          mv ~/dataset_cache/dataset_cache.tar.gz dataset_cache.tar.gz && rm -rf dataset-cache
+          tar xzvf dataset_cache.tar.gz
+          ls .dataset_cache
+          cp -r .dataset_cache ~/.dataset_cache
+
+      - name: Download howso-engine-py
+        if: contains(inputs.upstream-details, 'howso-engine-py')
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+        run: |
+          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-engine-py"."run-type"')
+          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-engine-py"."run-id"')
+          gh $run_type download -D hse -R "howsoai/howso-engine-py" -p "howso_engine-*-py3-none-any*" "$run_id"
+          # Needed because release/non-release downloads are different structure
+          cd hse && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+
+      - name: Download amalgam-lang-py
+        if: contains(inputs.upstream-details, 'amalgam-lang-py')
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+        run: |
+          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".amalgam-lang-py"."run-type"')
+          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".amalgam-lang-py"."run-id"')
+          gh $run_type download -D amlg -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any*" "$run_id"
+          # Needed because release/non-release downloads are different structure
+          cd amlg && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+
+      - name: Download howso-validator-py
+        if: contains(inputs.upstream-details, 'howso-validator-py')
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+        run: |
+          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-py"."run-type"')
+          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-py"."run-id"')
+          gh $run_type download -D hsv -R "howsoai/howso-validator-py" -p "howso_validator-*-py3-none-any*" "$run_id"
+          # Needed because release/non-release downloads are different structure
+          cd hsv && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+
+      - name: Download howso-validator-enterprise-py
+        if: contains(inputs.upstream-details, 'howso-validator-enterprise-py')
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+        run: |
+          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-enterprise-py"."run-type"')
+          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-enterprise-py"."run-id"')
+          gh $run_type download -D hsve -R "howsoai/howso-validator-enterprise-py" -p "howso_validator_enterprise-*-py3-none-any*" "$run_id"
+          # Needed because release/non-release downloads are different structure
+          cd hsve && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+
+      - name: Download howso-synthesizer-py
+        if: contains(inputs.upstream-details, 'howso-synthesizer-py')
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+        run: |
+          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-synthesizer-py"."run-type"')
+          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-synthesizer-py"."run-id"')
+          gh $run_type download -D synth -R "howsoai/howso-synthesizer-py" -p "howso_synthesizer-*-py3-none-any*" "$run_id"
+          # Needed because release/non-release downloads are different structure
+          cd synth && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+
+      - name: Configure MacOS environment
+        if: inputs.platform-pretty == 'MacOS'
+        run: |
+          brew install libomp
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Download tz data
+        if: inputs.platform-pretty == 'Windows'
+        shell: pwsh
+        run: |
+          ./build/powershell/Download-Tzdata.ps1
+
+      - name: Run unit tests
+        run: |
+          python --version
+          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}"" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          fi
+          if [[ -n "${{ inputs.config-fp }}"]]; then
+            export HOWSO_CONFIG=${{ inputs.config-fp }}
+          fi
+          pip install -r requirements-${{ inputs.python-version }}.txt --user
+          # Install any custom versions
+          if [ -d "hsve" ]; then
+            echo "Found custom howso-validator-enterprise version; installing..."
+            pip uninstall howso-validator-enterprise -y
+            pip install hsve/*.whl
+          fi
+          if [ -d "hsv" ]; then
+            echo "Found custom howso-validator version; installing..."
+            pip uninstall howso-validator -y
+            pip install hsv/*.whl
+          fi
+          if [ -d "synth" ]; then
+            echo "Found custom howso-synthesizer version; installing..."
+            pip uninstall howso-synthesizer -y
+            pip install synth/*.whl
+          fi
+          if [ -d "hse" ]; then
+            echo "Found custom howso-engine version; installing..."
+            pip uninstall howso-engine -y
+            pip install hse/*.whl
+          fi
+          if [ -d "amlg" ]; then
+            echo "Found custom amalgam-lang version; installing..."
+            pip uninstall amalgam-lang -y
+            pip install amlg/*.whl
+          fi
+          python -m pytest -n ${{ inputs.workers }} -s
+
+      - name: Upload trace files
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
+          path: ./traces/
