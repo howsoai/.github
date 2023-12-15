@@ -18,13 +18,13 @@ jobs:
 
   # REMOVE this job if this repo is not a Python package
   gen-requirements:
-    uses: "howsoai/.github/.github/workflows/compile-requirements.yml"
+    uses: "howsoai/.github/.github/workflows/compile-requirements.yml@main"
     secrets: inherit
     with:
       #######################################################################################
       # TODO: Replace package names below with relevant Howso dependencies for this project #
       #######################################################################################
-      upstream-packages: ['amalgam-lang-py howso-engine-py howso-synthesizer-py howso-validator-py howso-validator-enterprise-py']
+      upstream-packages: 'amalgam-lang-py howso-engine-py howso-synthesizer-py howso-validator-py howso-validator-enterprise-py'
 
   build:
     needs: ['gen-requirements']
@@ -36,7 +36,7 @@ jobs:
 
   xray:
     needs: ['build']
-    uses: "howsoai/.github/.github/workflows/scan-pull-request.yml"
+    uses: "howsoai/.github/.github/workflows/scan-pull-request.yml@main"
     secrets: inherit
 
   # This job is here to have only one final step to add for "Status Checks"

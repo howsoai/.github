@@ -73,7 +73,7 @@ jobs:
     #   upstream-details: JSON of all dependency details, e.g.,             #
     #     {howso-engine-py: {run-type: release, run-id: 123456, url: ... }} #
     #########################################################################
-    uses: howsoai/.github/.github/workflows/set-metadata.yml
+    uses: howsoai/.github/.github/workflows/set-metadata.yml@main
     secrets: inherit
     with:
       # Remove unused parameters
@@ -92,6 +92,7 @@ jobs:
   #############################################################
   build:
     needs: ['metadata']
+    runs-on: ubuntu-latest
     steps:
       - name: build
         run: |
@@ -100,7 +101,7 @@ jobs:
   pytest-linux-3-8-st:
     needs: ['metadata', 'build']
     if: inputs.build-type != 'PR'
-    uses: howsoai/.github/.github/workflows/pytest.yml
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
     with:
       platform: 'howso-ubuntu-runner-latest'
