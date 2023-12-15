@@ -1,5 +1,5 @@
 {
     "name": "Howso Release Build Template",
     "description": "Starter workflow for Howso release builds.",
-    "iconName": "octicon rocket-24"
+    "iconName": "octicon rocket"
 }
