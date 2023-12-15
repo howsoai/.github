@@ -19,7 +19,6 @@ concurrency:
 jobs:
 
   release:
-    needs: ['construct-release-tag']
     uses: "./.github/workflows/build.yml"
     secrets: inherit
     with:

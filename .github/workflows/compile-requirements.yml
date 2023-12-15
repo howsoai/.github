@@ -1,21 +1,17 @@
-name: Reusable WF - Compile Pip Requirements
+name: Reusable WF - Compile Requirements
 
 on:
   workflow_call:
     inputs:
       optional-dependencies:
-        description: An optional dependency installation specification for use with a pyproject.toml file.
+        description: An optional dependency installation specification for use with a pyproject.toml.
         type: string
         required: false
-        default: ".[dev]"
+        default: "[dev]"
       upstream-packages:
         description: A whitespace separated list of Howso package dependencies (e.g., "amalgam-lang-py howso-engine-py").
         type: string
         required: false
-
-defaults:
-  run:
-    shell: bash
 
 jobs:
   check-requirements:
@@ -42,6 +38,11 @@ jobs:
             fi
           fi
 
+          # Warn if setup.py is used (should migrate to pyproject.toml)
+          if [ -e "setup.py" ]; then
+            echo "::warning file=setup.py::Please update to a pyproject.toml"
+          fi
+
           # Check for changes in myfile.txt on the current branch compared to main branch
           git fetch
           git status
@@ -65,13 +66,14 @@ jobs:
     outputs:
       changes-pushed: ${{ steps.commit-changes.outputs.changes-pushed }}
     strategy:
-      max-parallel: 1
+      max-parallel: 1  # Necessary to avoid merge conflicts
       matrix:
         type: ['3.8', '3.9', '3.10', '3.11', 'licenses']
     steps:
 
       - uses: actions/checkout@v4
         with:
+          # Check out with a PAT so that the workflow can make commits that re-trigger the PR build
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
           ref: ${{ github.head_ref }}
 
@@ -91,15 +93,12 @@ jobs:
         if: matrix.type != 'licenses'
         id: compile-requirements
         run: |
-          # If the previous commit was to compile requirements for the current version, skip
-          if [[ "$(git log --pretty=%B -n 1)" == "Automated requirements/license generation [${{ matrix.type }}]" ]]; then
-            exit 0
-          fi
           # Pull latest changes
           git pull
           # Install pip-tools and run pip-compile
           pip install -U pip pip-tools
           if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
+            # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
             pip-compile requirements.in requirements-dev.in --resolver=backtracking --upgrade requirements.in --generate-hashes --no-emit-index-url --allow-unsafe --output-file requirements-${{ matrix.type }}.txt
           else
             pip-compile --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe --output-file requirements-${{ matrix.type }}.txt
@@ -109,13 +108,12 @@ jobs:
         if: matrix.type == 'licenses'
         id: gen-licenses
         run: |
-          python -m pip install -U --force-reinstall pip
-          pip install "${{ inputs.optional-dependencies }}"
+          pip install -e ."${{ inputs.optional-dependencies }}"
           # Do not include Howso software in the 3rd party license file
           this_repo="${{ github.repository }}"
           this_repo=${this_repo//-py/}  # Remove the "-py" postfix
           upstream_packages="${{ inputs.upstream-packages }}"
-          upstream_packages=${this_repo//-py/}  # Remove all "-py" postfixes
+          upstream_packages=${upstream_packages//-py/}  # Remove all "-py" postfixes
           pip uninstall $upstream_packages $this_repo -y
           rm -f LICENSE-3RD-PARTY.txt
           pip install pip-licenses

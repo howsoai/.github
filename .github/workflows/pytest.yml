@@ -7,6 +7,7 @@ on:
         required: true
         type: string
       platform-pretty:
+        description: One of 'Windows', 'Linux', 'MacOS'
         required: true
         type: string
       config-fp:
@@ -22,22 +23,25 @@ on:
       upstream-details:
         required: false
         type: string
-      workers:
-        required: false
-        type: string
-        default: "16"
       pmlb-cache:
         required: false
-        type: string
-        default: "false"
-      telemetry:
+        type: boolean
+        default: false
+      amalgam-plat-arch:
+        description: The platform/arch string to match when downloading Amalgam builds
         required: false
         type: string
-        default: "true"
-
-defaults:
-  run:
-    shell: bash
+        default: "linux-amd64"
+      optional-dependencies:
+        description: An optional dependency installation specification for use with a pyproject.toml.
+        type: string
+        required: false
+        default: "[dev]"
+      no-self-install:
+        description: Set to 'true' if the current repository is not an installable Python package
+        type: boolean
+        required: false
+        default: false
 
 jobs:
 
@@ -49,7 +53,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Collect Workflow Telemetry
-        if: inputs.telemetry == 'true'
         uses: catchpoint/workflow-telemetry-action@v1
         with:
           comment_on_pr: off
@@ -57,7 +60,7 @@ jobs:
           proc_trace_table_show: off
 
       - name: Pull GitHub cache
-        if: inputs.pmlb-cache == 'true'
+        if: inputs.pmlb-cache == true
         id: cache
         uses: actions/cache@v3
         env:
@@ -67,7 +70,7 @@ jobs:
           key: dataset-cache-${{ inputs.platform-pretty }}
       
       - name: Setup PMLB Cache
-        if: inputs.pmlb-cache == 'true'
+        if: inputs.pmlb-cache == true
         run: |
           ls -l ~/dataset_cache
           mv ~/dataset_cache/dataset_cache.tar.gz dataset_cache.tar.gz && rm -rf dataset-cache
@@ -75,60 +78,30 @@ jobs:
           ls .dataset_cache
           cp -r .dataset_cache ~/.dataset_cache
 
-      - name: Download howso-engine-py
-        if: contains(inputs.upstream-details, 'howso-engine-py')
+      - name: Download dependencies
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
         run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-engine-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-engine-py"."run-id"')
-          gh $run_type download -D hse -R "howsoai/howso-engine-py" -p "howso_engine-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd hse && if [ ! -f *.whl ]; then mv */*.whl ./; fi
-
-      - name: Download amalgam-lang-py
-        if: contains(inputs.upstream-details, 'amalgam-lang-py')
-        env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
-        run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".amalgam-lang-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".amalgam-lang-py"."run-id"')
-          gh $run_type download -D amlg -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd amlg && if [ ! -f *.whl ]; then mv */*.whl ./; fi
-
-      - name: Download howso-validator-py
-        if: contains(inputs.upstream-details, 'howso-validator-py')
-        env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
-        run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-py"."run-id"')
-          gh $run_type download -D hsv -R "howsoai/howso-validator-py" -p "howso_validator-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd hsv && if [ ! -f *.whl ]; then mv */*.whl ./; fi
-
-      - name: Download howso-validator-enterprise-py
-        if: contains(inputs.upstream-details, 'howso-validator-enterprise-py')
-        env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
-        run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-enterprise-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-enterprise-py"."run-id"')
-          gh $run_type download -D hsve -R "howsoai/howso-validator-enterprise-py" -p "howso_validator_enterprise-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd hsve && if [ ! -f *.whl ]; then mv */*.whl ./; fi
-
-      - name: Download howso-synthesizer-py
-        if: contains(inputs.upstream-details, 'howso-synthesizer-py')
-        env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
-        run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-synthesizer-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-synthesizer-py"."run-id"')
-          gh $run_type download -D synth -R "howsoai/howso-synthesizer-py" -p "howso_synthesizer-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd synth && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+          while read -r repo; do
+            echo "Getting details for $repo"
+            run_type=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-type"')
+            run_id=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-id"')
+            # Amalgam and howso-engine downloads need to be placed in their embedded location
+            if [[ "$repo" == "amalgam" ]]; then
+              gh $run_type download -D amalgam/lib/$plat/amd64 -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}*" "$run_id"
+              # Extract binaries
+              cd amalgam/lib
+              find . -type d -name lib -exec sh -c 'mv {}/* "$(dirname {})"' \;
+            elif [[ "$repo" == "howso-engine" ]]; then
+              gh $run_type download -D howso/howso-engine -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
+              # Extract CAMLs
+              cd howso/howso-engine && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+            else
+              gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
+              # Needed because release/non-release downloads are different structure
+              cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+            fi
+          done <<(echo "${{ inputs.upstream-details }}" | jq -rc 'keys[]')
 
       - name: Configure MacOS environment
         if: inputs.platform-pretty == 'MacOS'
@@ -144,7 +117,11 @@ jobs:
         if: inputs.platform-pretty == 'Windows'
         shell: pwsh
         run: |
-          ./build/powershell/Download-Tzdata.ps1
+          if [ -e "./build/powershell/Download-Tzdata.ps1" ]; then
+            ./build/powershell/Download-Tzdata.ps1
+          else
+            echo "Download-Tzdata script not found"
+          fi
 
       - name: Run unit tests
         run: |
@@ -155,34 +132,22 @@ jobs:
           if [[ -n "${{ inputs.config-fp }}"]]; then
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
+          # Install the current package (unless this repo is not a package, e.g., BDD)
+          if [ "${{ inputs.no-self-install }}" = false ]; then
+            echo "Doing editable install..."
+            pip install -e .${{ inputs.optional-dependencies }}
+          fi
           pip install -r requirements-${{ inputs.python-version }}.txt --user
-          # Install any custom versions
-          if [ -d "hsve" ]; then
-            echo "Found custom howso-validator-enterprise version; installing..."
-            pip uninstall howso-validator-enterprise -y
-            pip install hsve/*.whl
-          fi
-          if [ -d "hsv" ]; then
-            echo "Found custom howso-validator version; installing..."
-            pip uninstall howso-validator -y
-            pip install hsv/*.whl
-          fi
-          if [ -d "synth" ]; then
-            echo "Found custom howso-synthesizer version; installing..."
-            pip uninstall howso-synthesizer -y
-            pip install synth/*.whl
-          fi
-          if [ -d "hse" ]; then
-            echo "Found custom howso-engine version; installing..."
-            pip uninstall howso-engine -y
-            pip install hse/*.whl
-          fi
-          if [ -d "amlg" ]; then
-            echo "Found custom amalgam-lang version; installing..."
-            pip uninstall amalgam-lang -y
-            pip install amlg/*.whl
-          fi
-          python -m pytest -n ${{ inputs.workers }} -s
+          # Install any custom package versions
+          declare -a arr=("howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
+          for repo in "${arr[@]}"; do
+            if [ -d "$repo" ]; then
+              echo "Found custom $repo version; installing..."
+              pip uninstall ${repo%-py} -y
+              pip install $repo/*.whl
+            fi
+          done
+          python -m pytest -n auto -s
 
       - name: Upload trace files
         if: always()

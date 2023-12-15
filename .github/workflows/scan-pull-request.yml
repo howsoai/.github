@@ -1,4 +1,4 @@
-name: "Frogbot Scan Pull Request"
+name: "Reusable Workflow - Scan Pull Request"
 
 on:
   workflow_call:
@@ -9,7 +9,6 @@ on:
         required: false
 
 permissions:
-  pull-requests: write
   contents: read
 
 jobs:

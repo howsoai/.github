@@ -12,10 +12,19 @@ on:
       optional-release-tag:
         required: false
         type: string
+      amalgam-build:
+        required: false
+        type: string
+      howso-engine-build:
+        required: false
+        type: string
       amalgam-lang-py-build:
         required: false
         type: string
       howso-engine-py-build:
+        required: false
+        type: string
+      howso-synthesizer-py-build:
         required: false
         type: string
       howso-validator-py-build:
@@ -24,18 +33,11 @@ on:
       howso-validator-enterprise-py-build:
         required: false
         type: string
-      howso-synthesizer-py-build:
-        required: false
-        type: string
     outputs:
       upstream-details:
         value: ${{ jobs.set-metadata.outputs.upstream-details }}
       version:
         value: ${{ jobs.set-version.outputs.version }}
-
-defaults:
-  run:
-    shell: bash
 
 jobs:
 
@@ -55,45 +57,35 @@ jobs:
         fi
 
         echo "Constructing JSON payload from raw inputs"
+        # Map inputs to repo names in a JSON object
+        builds_json=$(cat <<EOF
+        {
+          "amalgam": "${{ inputs.amalgam-build }}",
+          "amalgam-lang-py": "${{ inputs.amalgam-lang-py-build }}",
+          "howso-engine": "${{ inputs.howso-engine-build }}",
+          "howso-engine-py": "${{ inputs.howso-engine-py-build }}",
+          "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
+          "howso-validator-py": "${{ inputs.howso-validator-py-build }}",
+          "howso-validator-enterprise-py": "${{ inputs.howso-validator-enterprise-py-build }}",
+        } 
+        EOF
+        )
+        # Initialize an empty final payload
         payload="{}"
 
-        # Get howso-engine-py version or run ID
-        if [[ "${{ inputs.howso-engine-py-build }}" =~ runs/([0-9]+) ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" '. + {"howso-engine-py": $run_id}')
-        elif [[ -n "${{ inputs.howso-engine-py-build }}" ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${{ inputs.howso-engine-py-build }}" '. + {"howso-engine-py": $run_id}')
-        fi
+        # If the provided build is a URL, extract the run ID. Else, if the build exists, add it to the payload JSON.
+        while read -r repo; do
+          build=$(echo "$builds_json" | jq --arg repo "$repo" '".$repo"')
+          echo "Discovered build '$build' for repo $repo"
+          if [[ "$build" =~ runs/([0-9]+) ]]; then
+            payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" --arg repo "$repo" '. + {"$repo": $run_id}')
+          elif [[ -n "$build" ]]; then
+            payload=$(echo "$payload" | jq --arg build "$build" --arg repo "$repo" '. + {"$repo": $build}')
+          fi
+        done <<(echo "$builds_json" | jq -rc 'keys[]')
 
-        # Get amalgam-lang-py version or run ID
-        if [[ "${{ inputs.amalgam-lang-py-build }}" =~ runs/([0-9]+) ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" '. + {"amalgam-lang-py": $run_id}')
-        elif [[ -n "${{ inputs.amalgam-lang-py-build }}" ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${{ inputs.amalgam-lang-py-build }}" '. + {"amalgam-lang-py": $run_id}')
-        fi
-
-        # Get howso-validator-py version or run ID
-        if [[ "${{ inputs.howso-validator-py-build }}" =~ runs/([0-9]+) ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" '. + {"howso-validator-py": $run_id}')
-        elif [[ -n "${{ inputs.howso-validator-py-build }}" ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${{ inputs.howso-validator-py-build }}" '. + {"howso-validator-py": $run_id}')
-        fi
-
-        # Get howso-validator-enterprise-py version or run ID
-        if [[ "${{ inputs.howso-validator-enterprise-py-build }}" =~ runs/([0-9]+) ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" '. + {"howso-validator-enterprise-py": $run_id}')
-        elif [[ -n "${{ inputs.howso-validator-enterprise-py-build }}" ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${{ inputs.howso-validator-enterprise-py-build }}" '. + {"howso-validator-enterprise-py": $run_id}')
-        fi
-
-        # Get howso-synthesizer-py version or run ID
-        if [[ "${{ inputs.howso-synthesizer-py-build }}" =~ runs/([0-9]+) ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" '. + {"howso-synthesizer-py": $run_id}')
-        elif [[ -n "${{ inputs.howso-synthesizer-py-build }}" ]]; then
-          payload=$(echo "$payload" | jq --arg run_id "${{ inputs.howso-synthesizer-py-build }}" '. + {"howso-synthesizer-py": $run_id}')
-        fi
-
-        echo "$payload"
         fmtd_payload=$(echo -n "$payload" | tr -d '\n')
+        echo "Formatted payload: $fmtd_payload"
         echo "payload=$fmtd_payload" >> $GITHUB_OUTPUT
 
   get-howso-synthesizer-py-details:
@@ -146,8 +138,26 @@ jobs:
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
 
+  get-howso-engine-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-engine"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+
+  get-amalgam-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "amalgam"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+
   set-metadata:
-    needs: ['get-amalgam-lang-py-details', 'get-howso-engine-py-details', 'get-howso-validator-py-details', 'get-howso-validator-enterprise-py-details', 'get-howso-synthesizer-py-details']
+    needs: ['get-amalgam-details', 'get-howso-engine-details', 'get-amalgam-lang-py-details', 'get-howso-engine-py-details', 'get-howso-validator-py-details', 'get-howso-validator-enterprise-py-details', 'get-howso-synthesizer-py-details']
     runs-on: ubuntu-latest
     outputs:
       upstream-details: ${{ steps.set-metadata-details.outputs.upstream-details }}
@@ -158,59 +168,82 @@ jobs:
       - name: set-metadata-details
         id: set-metadata-details
         run: |
-          details="{}"
-          if ! [[ -n "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}" ]]; then
-            # Append run-id, run-type, build-date, build-title, head-sha, url to metadata JSON
-            details=$(echo "$details" | jq '. + {"amalgam-lang-py": "{}"}')
-            details=$(echo "$details" | jq '."amalgam-lang-py".run_id="${{ needs.get-amalgam-lang-py-details.outputs.run-id }}"')
-            details=$(echo "$details" | jq '."amalgam-lang-py".run_type="${{ needs.get-amalgam-lang-py-details.outputs.run-type }}"')
-            details=$(echo "$details" | jq '."amalgam-lang-py".build_date="${{ needs.get-amalgam-lang-py-details.outputs.build-date }}"')
-            details=$(echo "$details" | jq '."amalgam-lang-py".build_title="${{ needs.get-amalgam-lang-py-details.outputs.build-title }}"')
-            details=$(echo "$details" | jq '."amalgam-lang-py".head_sha="${{ needs.get-amalgam-lang-py-details.outputs.head-sha }}"')
-            details=$(echo "$details" | jq '."amalgam-lang-py".url="${{ needs.get-amalgam-lang-py-details.outputs.url }}"')
-          fi
-          if ! [[ -n "${{ needs.get-howso-engine-py-details.outputs.run-id }}" ]]; then
-            # Append run-id, run-type, build-date, build-title, head-sha, url to metadata JSON
-            details=$(echo "$details" | jq '. + {"howso-engine-py": "{}"}')
-            details=$(echo "$details" | jq '."howso-engine-py".run_id="${{ needs.get-howso-engine-py-details.outputs.run-id }}"')
-            details=$(echo "$details" | jq '."howso-engine-py".run_type="${{ needs.get-howso-engine-py-details.outputs.run-type }}"')
-            details=$(echo "$details" | jq '."howso-engine-py".build_date="${{ needs.get-howso-engine-py-details.outputs.build-date }}"')
-            details=$(echo "$details" | jq '."howso-engine-py".build_title="${{ needs.get-howso-engine-py-details.outputs.build-title }}"')
-            details=$(echo "$details" | jq '."howso-engine-py".head_sha="${{ needs.get-howso-engine-py-details.outputs.head-sha }}"')
-            details=$(echo "$details" | jq '."howso-engine-py".url="${{ needs.get-howso-engine-py-details.outputs.url }}"')
-          fi
-          if ! [[ -n "${{ needs.get-howso-validator-py-details.outputs.run-id }}" ]]; then
-            # Append run-id, run-type, build-date, build-title, head-sha, url to metadata JSON
-            details=$(echo "$details" | jq '. + {"howso-validator-py": "{}"}')
-            details=$(echo "$details" | jq '."howso-validator-py".run_id="${{ needs.get-howso-validator-py-details.outputs.run-id }}"')
-            details=$(echo "$details" | jq '."howso-validator-py".run_type="${{ needs.get-howso-validator-py-details.outputs.run-type }}"')
-            details=$(echo "$details" | jq '."howso-validator-py".build_date="${{ needs.get-howso-validator-py-details.outputs.build-date }}"')
-            details=$(echo "$details" | jq '."howso-validator-py".build_title="${{ needs.get-howso-validator-py-details.outputs.build-title }}"')
-            details=$(echo "$details" | jq '."howso-validator-py".head_sha="${{ needs.get-howso-validator-py-details.outputs.head-sha }}"')
-            details=$(echo "$details" | jq '."howso-validator-py".url="${{ needs.get-howso-validator-py-details.outputs.url }}"')
-          fi
-          if ! [[ -n "${{ needs.get-howso-validator-enterprise-py-details.outputs.run-id }}" ]]; then
-            # Append run-id, run-type, build-date, build-title, head-sha, url to metadata JSON
-            details=$(echo "$details" | jq '. + {"howso-validator-enterprise-py": "{}"}')
-            details=$(echo "$details" | jq '."howso-validator-enterprise-py".run_id="${{ needs.get-howso-validator-enterprise-py-details.outputs.run-id }}"')
-            details=$(echo "$details" | jq '."howso-validator-enterprise-py".run_type="${{ needs.get-howso-validator-enterprise-py-details.outputs.run-type }}"')
-            details=$(echo "$details" | jq '."howso-validator-enterprise-py".build_date="${{ needs.get-howso-validator-enterprise-py-details.outputs.build-date }}"')
-            details=$(echo "$details" | jq '."howso-validator-enterprise-py".build_title="${{ needs.get-howso-validator-enterprise-py-details.outputs.build-title }}"')
-            details=$(echo "$details" | jq '."howso-validator-enterprise-py".head_sha="${{ needs.get-howso-validator-enterprise-py-details.outputs.head-sha }}"')
-            details=$(echo "$details" | jq '."howso-validator-enterprise-py".url="${{ needs.get-howso-validator-enterprise-py-details.outputs.url }}"')
-          fi
-          if ! [[ -n "${{ needs.get-howso-synthesizer-py-details.outputs.run-id }}" ]]; then
-            # Append run-id, run-type, build-date, build-title, head-sha, url to metadata JSON
-            details=$(echo "$details" | jq '. + {"howso-engine-py": "{}"}')
-            details=$(echo "$details" | jq '."howso-synthesizer-py".run_id="${{ needs.get-howso-synthesizer-py-details.outputs.run-id }}"')
-            details=$(echo "$details" | jq '."howso-synthesizer-py".run_type="${{ needs.get-howso-synthesizer-py-details.outputs.run-type }}"')
-            details=$(echo "$details" | jq '."howso-synthesizer-py".build_date="${{ needs.get-howso-synthesizer-py-details.outputs.build-date }}"')
-            details=$(echo "$details" | jq '."howso-synthesizer-py".build_title="${{ needs.get-howso-synthesizer-py-details.outputs.build-title }}"')
-            details=$(echo "$details" | jq '."howso-synthesizer-py".head_sha="${{ needs.get-howso-synthesizer-py-details.outputs.head-sha }}"')
-            details=$(echo "$details" | jq '."howso-synthesizer-py".url="${{ needs.get-howso-synthesizer-py-details.outputs.url }}"')
-          fi
-
-          echo "upstream-details=$(echo $details)" >> $GITHUB_OUTPUT
+          # Construct a JSON object with all detail outputs, and then remove the empty ones
+          details=$(cat <<EOF
+          {
+            "amalgam": {
+              "run_id": "${{ inputs.amalgam-build }}",
+              "run_type": "${{ needs.get-amalgam-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-amalgam-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-amalgam-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-amalgam-details.outputs.head-sha }}",
+              "url": "${{ needs.get-amalgam-details.outputs.url }}"
+            },
+            "amalgam-lang-py": {
+              "run_id": "${{ inputs.amalgam-lang-py-build }}",
+              "run_type": "${{ needs.get-amalgam-lang-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-amalgam-lang-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-amalgam-lang-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-amalgam-lang-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-amalgam-lang-py-details.outputs.url }}"
+            },
+            "howso-engine": {
+              "run_id": "${{ inputs.howso-engine-build }}",
+              "run_type": "${{ needs.get-howso-engine-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-engine-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-engine-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-engine-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-engine-details.outputs.url }}"
+            },
+            "howso-engine-py": {
+              "run_id": "${{ inputs.howso-engine-py-build }}",
+              "run_type": "${{ needs.get-howso-engine-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-engine-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-engine-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-engine-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-engine-py-details.outputs.url }}"
+            },
+            "howso-synthesizer-py": {
+              "run_id": "${{ inputs.howso-synthesizer-py-build }}",
+              "run_type": "${{ needs.get-howso-synthesizer-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-synthesizer-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-synthesizer-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-synthesizer-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-synthesizer-py-details.outputs.url }}"
+            },
+            "howso-validator-py": {
+              "run_id": "${{ inputs.howso-validator-py-build }}",
+              "run_type": "${{ needs.get-howso-validator-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-validator-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-validator-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-validator-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-validator-py-details.outputs.url }}"
+            },
+            "howso-validator-enterprise-py": {
+              "run_id": "${{ inputs.howso-validator-enterprise-py-build }}",
+              "run_type": "${{ needs.get-howso-validator-enterprise-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-validator-enterprise-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-validator-enterprise-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-validator-enterprise-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-validator-enterprise-py-details.outputs.url }}"
+            },
+          } 
+          EOF
+          )
+              
+          # Iterate through the full details JSON, and add those with run IDs present to the filtered JSON
+          while read -r repo; do
+            run_id=$(echo "$details" | jq --arg repo "$repo" '".$repo"."run_id"')
+            echo "Discovered run_id '$run_id' for repo $repo"
+            all_details=$(echo "$details" | jq --arg repo "$repo" '".$repo"')
+            elif [[ -n "$run_id" ]]; then
+              filtered_details=$(echo "$filtered_details" | jq --arg all_details "$all_details" --arg repo "$repo" '. + {"$repo": $all_details}')
+            else
+              echo "Skipping (empty run_id)"
+            fi
+          done <<(echo "$details" | jq -rc 'keys[]')
+          echo "Filtered upstream details: $filtered_details"
+          echo "upstream-details=$(echo $filtered_details)" >> $GITHUB_OUTPUT
   
   set-version:
     needs: ['set-metadata']
@@ -245,7 +278,7 @@ jobs:
           echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+PR.${PR_NUMBER}.${PR_ITERATION})" >> $GITHUB_OUTPUT
 
       - name: Set Branch version
-        if: needs.set-metadata.outputs.build-type == 'branch'
+        if: needs.set-metadata.outputs.build-type == ''
         id: set-branch-version
         run: |
           BRANCH_ITERATION=${{ github.run_attempt }}.${{ github.run_number }}
@@ -254,7 +287,6 @@ jobs:
       - name: Make Version PEP-Compliant
         if: steps.set-pr-version != '' || steps.set-branch-version != ''
         id: pepify
-        shell: bash
         run: |
           if [[ -n "${{ steps.set-pr-version.outputs.version }}" ]]; then
             echo "Found PR version to pepify..."
@@ -262,6 +294,11 @@ jobs:
           else
             echo "Found branch version to pepify..."
             semver=${{ steps.set-branch-version.outputs.version }}
+          fi
+          # If this is not a Python repo, do nothing
+          if ! [[ "${{ github.repository }}" =~ "-py" ]]; then
+            echo "Current repository is not a Python project, nothing to PEP-ify."
+            echo "version=$semver" >> $GITHUB_OUTPUT
           fi
           # Per PEP 440, the full scope of traditional semantic versioning is not valid in Python.
           int_only_br=$(echo "${{ github.ref_name }}" | sed 's/[^0-9]*//g')
@@ -275,12 +312,6 @@ jobs:
         id: set-release-version
         run: |
           RELEASE_TAG=""
-
-          # Check for null tag:
-          if [[ "${{ inputs.optional-release-tag }}" = "0.0.0" || (-z "${{ inputs.optional-release-tag }}" && "${{ steps.previous-tag.outputs.tag }}" = "0.0.0") ]]; then
-            echo "❌ - Null tag (0.0.0) is invalid for a release (hint: repo could contain no tags)"
-            exit 1
-          fi
 
           # If tag not given by user, deduce from commit titles since last tag:
           if test -z "${{ inputs.optional-release-tag }}"; then

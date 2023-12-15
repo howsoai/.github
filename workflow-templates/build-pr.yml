@@ -4,7 +4,7 @@ run-name: "PR Build: #${{ github.event.pull_request.number }} (${{ github.run_at
 on:
   pull_request:
     branches:
-      - 'main'
+      - $default-branch
 
 defaults:
   run:
@@ -16,10 +16,7 @@ concurrency:
 
 jobs:
 
-  set-pr-version:
-    runs-on: ubuntu-latest
-    steps:
-
+  # REMOVE this job if this repo is not a Python package
   gen-requirements:
     uses: "howsoai/.github/.github/workflows/compile-requirements.yml"
     secrets: inherit

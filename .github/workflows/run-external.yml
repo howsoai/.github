@@ -25,10 +25,6 @@ on:
       run-id:
         value: ${{ jobs.run-external-workflow.outputs.run-id }}
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
 
   run-external-workflow:

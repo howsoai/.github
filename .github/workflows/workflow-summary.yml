@@ -7,10 +7,6 @@ on:
         type: string
         required: true
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
 
   output-summary:
@@ -24,60 +20,44 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Download howso-engine-py
-        if: contains(inputs.upstream-details, 'howso-engine-py')
-        env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
-        run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-engine-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-engine-py"."run-id"')
-          gh $run_type download -D hse -R "howsoai/howso-engine-py" -p "howso_engine-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd hse && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+      - name: Download Artifacts
+        # If the current repo is either of these, download the built artifact with embedded amalgam/howso-engine
+        if: github.repository == 'amalgam-lang-py' || github.repository == 'howso-engine-py'
+        uses: actions/download-artifact@v3
+        with:
+          path: ./tmp
 
-      - name: Download amalgam-lang-py
-        if: contains(inputs.upstream-details, 'amalgam-lang-py')
-        env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+      - name: Configure artifacts
+        if: github.repository == 'amalgam-lang-py' || github.repository == 'howso-engine-py'
         run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".amalgam-lang-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".amalgam-lang-py"."run-id"')
-          gh $run_type download -D amlg -R "howsoai/amalgam-lang-py" -p "amalgam_lang-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd amlg && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+          mkdir -p dist
+          find ./tmp -type f -name '*.whl' -exec mv -t ./dist {} +
+          rm -rf ./tmp
 
-      - name: Download howso-validator-py
-        if: contains(inputs.upstream-details, 'howso-validator-py')
+      - name: Download dependencies
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
         run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-py"."run-id"')
-          gh $run_type download -D hsv -R "howsoai/howso-validator-py" -p "howso_validator-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd hsv && if [ ! -f *.whl ]; then mv */*.whl ./; fi
-
-      - name: Download howso-validator-enterprise-py
-        if: contains(inputs.upstream-details, 'howso-validator-enterprise-py')
-        env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
-        run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-enterprise-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-validator-enterprise-py"."run-id"')
-          gh $run_type download -D hsve -R "howsoai/howso-validator-enterprise-py" -p "howso_validator_enterprise-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd hsve && if [ ! -f *.whl ]; then mv */*.whl ./; fi
-
-      - name: Download howso-synthesizer-py
-        if: contains(inputs.upstream-details, 'howso-synthesizer-py')
-        env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
-        run: |
-          run_type=$(echo "${{ inputs.upstream-details }}" | jq '".howso-synthesizer-py"."run-type"')
-          run_id=$(echo "${{ inputs.upstream-details }}" | jq '".howso-synthesizer-py"."run-id"')
-          gh $run_type download -D synth -R "howsoai/howso-synthesizer-py" -p "howso_synthesizer-*-py3-none-any*" "$run_id"
-          # Needed because release/non-release downloads are different structure
-          cd synth && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+          while read -r repo; do
+            echo "Getting details for $repo"
+            run_type=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-type"')
+            run_id=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-id"')
+            # Amalgam and howso-engine downloads need to be placed in their embedded location
+            if [[ "$repo" == "amalgam" ]]; then
+              gh $run_type download -D amalgam/lib/$plat/amd64 -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}*" "$run_id"
+              # Extract binaries
+              cd amalgam/lib
+              find . -type d -name lib -exec sh -c 'mv {}/* "$(dirname {})"' \;
+            elif [[ "$repo" == "howso-engine" ]]; then
+              gh $run_type download -D howso/howso-engine -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
+              # Extract CAMLs
+              cd howso/howso-engine && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+            else
+              gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
+              # Needed because release/non-release downloads are different structure
+              cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+            fi
+          done <<(echo "${{ inputs.upstream-details }}" | jq -rc 'keys[]')
 
       - name: Generate workflow summary
         env:
@@ -88,32 +68,15 @@ jobs:
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           pip install -r requirements-3.11.txt --user
-          # If any prerelease versions are specified in the payload, manually install those
-          if [ -d "hsve" ]; then
-            echo "Found custom howso-validator-enterprise version; installing..."
-            pip uninstall howso-validator-enterprise -y
-            pip install hsve/*.whl
-          fi
-          if [ -d "hsv" ]; then
-            echo "Found custom howso-validator version; installing..."
-            pip uninstall howso-validator -y
-            pip install hsv/*.whl
-          fi
-          if [ -d "synth" ]; then
-            echo "Found custom howso-synthesizer version; installing..."
-            pip uninstall howso-synthesizer -y
-            pip install synth/*.whl
-          fi
-          if [ -d "hse" ]; then
-            echo "Found custom howso-engine version; installing..."
-            pip uninstall howso-engine -y
-            pip install hse/*.whl
-          fi
-          if [ -d "amlg" ]; then
-            echo "Found custom amalgam-lang version; installing..."
-            pip uninstall amalgam-lang -y
-            pip install amlg/*.whl
-          fi
+          # Install any custom package versions
+          declare -a arr=("howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
+          for repo in "${arr[@]}"; do
+            if [ -d "$repo" ]; then
+              echo "Found custom $repo version; installing..."
+              pip uninstall ${repo%-py} -y
+              pip install $repo/*.whl
+            fi
+          done
 
           # Determine site-packages location (to retrieve version.json)
           site_packages=$(python -m site --user-site)
@@ -161,7 +124,6 @@ jobs:
           sed -i "s|{howso-engine-url}|$hse_url|g" ./.github/templates/version_summary.md
 
           # Get Howso Python package metadata from workflow run or release install
-          declare -a arr=("amalgam-lang-py" "howso-engine-py" "howso-synthesizer-py" "howso-validator-py" "howso-validator-enterprise-py")
           for repo in "${arr[@]}"; do
             pkg_version=$(python -c "import importlib.metadata; print(importlib.metadata.version('${repo%-py}'))")
             

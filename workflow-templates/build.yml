@@ -57,6 +57,10 @@ on:
         required: false
         type: string
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
 
   metadata:
@@ -84,10 +88,17 @@ jobs:
 
   #############################################################
   # TODO: implement additional build jobs for this project    #
-  # Example Pytest and Release jobs are below.                #
+  # See example jobs below.                                   #
   #############################################################
-  pytest-linux-3-8-st:
+  build:
     needs: ['metadata']
+    steps:
+      - name: build
+        run: |
+          echo "TODO"
+
+  pytest-linux-3-8-st:
+    needs: ['metadata', 'build']
     if: inputs.build-type != 'PR'
     uses: howsoai/.github/.github/workflows/pytest.yml
     secrets: inherit
@@ -102,8 +113,6 @@ jobs:
 
   release:
     if: inputs.build-type == 'release'
-    environment:
-      name: PyPi
     permissions:
       contents: write
     needs: ['metadata', 'pytest-linux-3-8-st']
