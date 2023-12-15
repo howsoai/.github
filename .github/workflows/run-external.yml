@@ -1,0 +1,134 @@
+# Run an external workflow and block until it reaches a terminal state
+name: Reusable WF - Run External Workflow
+
+on:
+  workflow_call:
+    inputs:
+      owner:
+        required: false
+        type: string
+        default: "howsoai"
+      repo:
+        required: true
+        type: string
+      workflow-name:
+        required: true
+        type: string
+      payload:
+        required: false
+        type: string
+        default: "{}"
+      override:
+        required: false
+        type: string
+    outputs:
+      run-id:
+        value: ${{ jobs.run-external-workflow.outputs.run-id }}
+
+jobs:
+
+  run-external-workflow:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      run-id: ${{ steps.get-id.outputs.run-id }}
+    env:
+      GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+      RUN_ID: ''
+    steps:
+
+      - name: Set override
+        if: inputs.override != ''
+        run: |
+          echo "Override set to ${{ inputs.override }}. Skipping branch build."
+          echo "RUN_ID=${{ inputs.override }}" >> $GITHUB_ENV
+      
+      - name: Check cached workflow
+        id: check-cached
+        if: inputs.override == ''
+        run: |
+          run=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ inputs.owner }}/${{ inputs.repo }}/actions/workflows/create-branch-build.yml/runs)
+
+          gh repo clone ${{ inputs.owner }}/${{ inputs.repo }}
+
+          cd ${{ inputs.repo }}
+
+          last_commit=$(git log -n 1 --format="%ct" HEAD)
+
+          echo "Most recent commit: $last_commit"
+
+          # Check for a successful, up-to-date branch build over the previous 5 runs
+          i=0
+          while (( $i < 5 )); do
+            branch=$(echo "$run" | jq -r ".workflow_runs[$i].head_branch") 
+            status=$(echo "$run" | jq -r ".workflow_runs[$i].status")
+            conclusion=$(echo "$run" | jq -r ".workflow_runs[$i].conclusion")
+            run_id=$(echo "$run" | jq -r ".workflow_runs[$i].id")
+            start=$(echo "$run" | jq -r ".workflow_runs[$i].created_at")
+            epoch_start=$(date -d "$start" +"%s")
+
+            if [[ "$branch" == "main" && "$status" == "completed" && "$conclusion" == "success" ]]; then
+              if (( $epoch_start > $last_commit )); then
+                echo "Found an existing workflow run with latest changes: $run_id"
+                echo "RUN_ID=$run_id" >> $GITHUB_ENV
+                exit 0
+              fi
+            fi
+
+            i=$((i + 1))
+          done
+
+      - name: Run workflow
+        if: inputs.override == '' && env.RUN_ID == ''
+        run: |
+          echo "Initializing workflow run: ${{ inputs.workflow-name }}"
+          echo '${{ inputs.payload }}' | gh workflow run ${{ inputs.workflow-name }} -R ${{ inputs.owner }}/${{ inputs.repo }} --json
+
+      - name: Check workflow status
+        if: inputs.override == ''
+        id: get-id
+        run: |
+          if test -n "$RUN_ID"; then
+            echo "Overriding to $RUN_ID"
+            echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          sleep 15
+
+          run_id=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ inputs.owner }}/${{ inputs.repo }}/actions/workflows/${{ inputs.workflow-name }}/runs \
+            | jq -r '.workflow_runs[0].id')
+
+          echo "Captured workflow run ID: $run_id"
+
+          status="queued"
+          while [[ "$status" != "completed" ]]; do
+            echo "Workflow run at https://github.com/${{ inputs.owner }}/${{ inputs.repo }}/actions/runs/$run_id has non-complete status '$status'. Going back to sleep..."
+            sleep 15
+            status=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/${{ inputs.owner }}/${{ inputs.repo }}/actions/runs/$run_id \
+              | jq -r '.status')
+          done
+
+          conclusion=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ inputs.owner }}/${{ inputs.repo }}/actions/runs/$run_id \
+            | jq -r '.conclusion')
+
+          if [[ "$conclusion" != "success" ]]; then
+            echo "Critical failure: workflow run $run_id has conclusion '$conclusion'. Exiting."
+            exit 1
+          fi
+
+          echo "Success!"
+          echo "run-id=$run_id" >> $GITHUB_OUTPUT

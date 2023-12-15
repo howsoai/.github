@@ -1,0 +1,161 @@
+name: Reusable WF - Run Pytest
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      platform-pretty:
+        description: One of 'Windows', 'Linux', 'MacOS'
+        required: true
+        type: string
+      config-fp:
+        required: false
+        type: string
+      config-pretty:
+        required: false
+        type: string
+        default: "[no config]"
+      python-version:
+        required: true
+        type: string
+      upstream-details:
+        required: false
+        type: string
+      pmlb-cache:
+        required: false
+        type: boolean
+        default: false
+      amalgam-plat-arch:
+        description: The platform/arch string to match when downloading Amalgam builds
+        required: false
+        type: string
+        default: "linux-amd64"
+      optional-dependencies:
+        description: An optional dependency installation specification for use with a pyproject.toml.
+        type: string
+        required: false
+        default: "[dev]"
+      no-self-install:
+        description: Set to 'true' if the current repository is not an installable Python package
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+
+  test:
+    name: Pytest (${{ inputs.python-version }}, ${{inputs.platform-pretty}}, ${{ inputs.config-pretty }})
+    runs-on: ${{ inputs.platform }}
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Collect Workflow Telemetry
+        uses: catchpoint/workflow-telemetry-action@v1
+        with:
+          comment_on_pr: off
+          proc_trace_chart_show: off
+          proc_trace_table_show: off
+
+      - name: Pull GitHub cache
+        if: inputs.pmlb-cache == true
+        id: cache
+        uses: actions/cache@v3
+        env:
+          cache-name: dataset-cache-${{ inputs.platform-pretty }}
+        with:
+          path: ~/dataset_cache
+          key: dataset-cache-${{ inputs.platform-pretty }}
+      
+      - name: Setup PMLB Cache
+        if: inputs.pmlb-cache == true
+        run: |
+          ls -l ~/dataset_cache
+          mv ~/dataset_cache/dataset_cache.tar.gz dataset_cache.tar.gz && rm -rf dataset-cache
+          tar xzvf dataset_cache.tar.gz
+          ls .dataset_cache
+          cp -r .dataset_cache ~/.dataset_cache
+
+      - name: Download dependencies
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+        run: |
+          while read -r repo; do
+            echo "Getting details for $repo"
+            run_type=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-type"')
+            run_id=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-id"')
+            # Amalgam and howso-engine downloads need to be placed in their embedded location
+            IFS='-' read -r plat arch <<< "${{ inputs.amalgam-plat-arch }}"
+            if [[ "$repo" == "amalgam" ]]; then
+              echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
+              gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}*" "$run_id"
+              # Extract binaries
+              cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+              cp lib/* .
+              ls -l
+            elif [[ "$repo" == "howso-engine" ]]; then
+              echo "Downloading and extracting Howso Engine CAMLs..."
+              gh $run_type download -D howso/howso-engine -R "howsoai/$repo" -p "howso-engine-*" "$run_id"
+              # Extract CAMLs
+              cd howso/howso-engine && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+            else
+              gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
+              # Needed because release/non-release downloads are different structure
+              cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+            fi
+          done <<(echo "${{ inputs.upstream-details }}" | jq -rc 'keys[]')
+
+      - name: Configure MacOS environment
+        if: inputs.platform-pretty == 'MacOS'
+        run: |
+          brew install libomp
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Download tz data
+        if: inputs.platform-pretty == 'Windows'
+        shell: pwsh
+        run: |
+          if [ -e "./build/powershell/Download-Tzdata.ps1" ]; then
+            ./build/powershell/Download-Tzdata.ps1
+          else
+            echo "Download-Tzdata script not found"
+          fi
+
+      - name: Run unit tests
+        run: |
+          python --version
+          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}"" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          fi
+          if [[ -n "${{ inputs.config-fp }}"]]; then
+            export HOWSO_CONFIG=${{ inputs.config-fp }}
+          fi
+          # Install the current package (unless this repo is not a package, e.g., BDD)
+          if [ "${{ inputs.no-self-install }}" = false ]; then
+            echo "Doing editable install..."
+            pip install -e .${{ inputs.optional-dependencies }}
+          fi
+          pip install -r requirements-${{ inputs.python-version }}.txt --user
+          # Install any custom package versions
+          declare -a arr=("howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
+          for repo in "${arr[@]}"; do
+            if [ -d "$repo" ]; then
+              echo "Found custom $repo version; installing..."
+              pip uninstall ${repo%-py} -y
+              pip install $repo/*.whl
+            fi
+          done
+          python -m pytest -n auto -s
+
+      - name: Upload trace files
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
+          path: ./traces/

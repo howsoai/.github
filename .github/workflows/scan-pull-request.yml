@@ -1,0 +1,43 @@
+name: "Reusable Workflow - Scan Pull Request"
+
+on:
+  workflow_call:
+    inputs:
+      upstream-packages:
+        description: A whitespace separated list of Howso package dependencies (e.g., "amalgam-lang-py howso-engine-py").
+        type: string
+        required: false
+
+jobs:
+
+  scan-pull-request:
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Download Artifacts
+        run: |
+          mkdir -p dist
+          pip download -r requirements-3.11.txt -d ./dist
+          # Remove upstream Howso packages since we don't want these to be scanned
+          for pkg in ${{ inputs.upstream-packages }}; do
+            fmtd_pkg=${pkg//-py/}  # Remove the "-py" postfix
+            fmtd_pkg=${fmtd_pkg//-/_}  # Change "-" to "_"
+            echo "Removing $fmtd_pkg from consideration for scanning."
+            rm -f ./dist/$fmtd_pkg*
+
+      - uses: jfrog/setup-jfrog-cli@v3
+        env:
+          JF_URL: ${{ secrets.JF_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
+          JF_ALLOWED_LICENSES: "Apache-1.0, Apache-1.1, Apache-2.0, Artistic-1.0, Artistic-1.0-Perl, Artistic-2.0, BSD, BSD 2-Clause, BSD 3-Clause, BSD-2-Clause, BSD-3-Clause, MIT, MPL-2.0"
+
+      - name: 🐸 scan
+        run: |
+          jf s ./dist/ --licenses --watches pipeline-distributed

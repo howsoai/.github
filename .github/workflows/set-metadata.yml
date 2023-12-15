@@ -1,0 +1,386 @@
+name: Reusable WF - Set Build Metadata
+
+on:
+  workflow_call:
+    inputs:
+      build-type:
+        required: false
+        type: string
+      payload:
+        required: false
+        type: string
+      optional-release-tag:
+        required: false
+        type: string
+      amalgam-build:
+        required: false
+        type: string
+      howso-engine-build:
+        required: false
+        type: string
+      amalgam-lang-py-build:
+        required: false
+        type: string
+      howso-engine-py-build:
+        required: false
+        type: string
+      howso-synthesizer-py-build:
+        required: false
+        type: string
+      howso-validator-py-build:
+        required: false
+        type: string
+      howso-validator-enterprise-py-build:
+        required: false
+        type: string
+    outputs:
+      upstream-details:
+        value: ${{ jobs.set-metadata.outputs.upstream-details }}
+      version:
+        value: ${{ jobs.set-version.outputs.version }}
+
+jobs:
+
+  construct-payload:
+    runs-on: ubuntu-latest
+    outputs:
+      payload: ${{ steps.construct-payload.outputs.payload }}
+    steps:
+
+    - name: Construct payload
+      id: construct-payload
+      run: |
+        if [[ -n "${{ inputs.payload }}" ]]; then
+          echo "Found preconstructed JSON payload"
+          echo "payload=${{ inputs.payload }}" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        echo "Constructing JSON payload from raw inputs"
+        # Map inputs to repo names in a JSON object
+        builds_json=$(cat <<EOF
+        {
+          "amalgam": "${{ inputs.amalgam-build }}",
+          "amalgam-lang-py": "${{ inputs.amalgam-lang-py-build }}",
+          "howso-engine": "${{ inputs.howso-engine-build }}",
+          "howso-engine-py": "${{ inputs.howso-engine-py-build }}",
+          "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
+          "howso-validator-py": "${{ inputs.howso-validator-py-build }}",
+          "howso-validator-enterprise-py": "${{ inputs.howso-validator-enterprise-py-build }}",
+        } 
+        EOF
+        )
+        # Initialize an empty final payload
+        payload="{}"
+
+        # If the provided build is a URL, extract the run ID. Else, if the build exists, add it to the payload JSON.
+        while read -r repo; do
+          build=$(echo "$builds_json" | jq --arg repo "$repo" '".$repo"')
+          echo "Discovered build '$build' for repo $repo"
+          if [[ "$build" =~ runs/([0-9]+) ]]; then
+            payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" --arg repo "$repo" '. + {"$repo": $run_id}')
+          elif [[ -n "$build" ]]; then
+            payload=$(echo "$payload" | jq --arg build "$build" --arg repo "$repo" '. + {"$repo": $build}')
+          fi
+        done <<(echo "$builds_json" | jq -rc 'keys[]')
+
+        fmtd_payload=$(echo -n "$payload" | tr -d '\n')
+        echo "Formatted payload: $fmtd_payload"
+        echo "payload=$fmtd_payload" >> $GITHUB_OUTPUT
+
+  get-howso-synthesizer-py-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-synthesizer-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+
+  get-howso-validator-enterprise-py-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-validator-enterprise-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+
+  get-howso-validator-py-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-validator-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+
+  get-howso-engine-py-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-engine-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+
+  get-amalgam-lang-py-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "amalgam-lang-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+
+  get-howso-engine-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-engine"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+
+  get-amalgam-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "amalgam"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+
+  set-metadata:
+    needs: ['get-amalgam-details', 'get-howso-engine-details', 'get-amalgam-lang-py-details', 'get-howso-engine-py-details', 'get-howso-validator-py-details', 'get-howso-validator-enterprise-py-details', 'get-howso-synthesizer-py-details']
+    runs-on: ubuntu-latest
+    outputs:
+      upstream-details: ${{ steps.set-metadata-details.outputs.upstream-details }}
+      build-type: ${{ steps.set-metadata-details.outputs.build-type }}
+      config-file: ${{ steps.set-metadata-details.outputs.config-file }}
+    steps:
+
+      - name: set-metadata-details
+        id: set-metadata-details
+        run: |
+          # Construct a JSON object with all detail outputs, and then remove the empty ones
+          details=$(cat <<EOF
+          {
+            "amalgam": {
+              "run_id": "${{ inputs.amalgam-build }}",
+              "run_type": "${{ needs.get-amalgam-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-amalgam-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-amalgam-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-amalgam-details.outputs.head-sha }}",
+              "url": "${{ needs.get-amalgam-details.outputs.url }}"
+            },
+            "amalgam-lang-py": {
+              "run_id": "${{ inputs.amalgam-lang-py-build }}",
+              "run_type": "${{ needs.get-amalgam-lang-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-amalgam-lang-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-amalgam-lang-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-amalgam-lang-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-amalgam-lang-py-details.outputs.url }}"
+            },
+            "howso-engine": {
+              "run_id": "${{ inputs.howso-engine-build }}",
+              "run_type": "${{ needs.get-howso-engine-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-engine-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-engine-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-engine-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-engine-details.outputs.url }}"
+            },
+            "howso-engine-py": {
+              "run_id": "${{ inputs.howso-engine-py-build }}",
+              "run_type": "${{ needs.get-howso-engine-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-engine-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-engine-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-engine-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-engine-py-details.outputs.url }}"
+            },
+            "howso-synthesizer-py": {
+              "run_id": "${{ inputs.howso-synthesizer-py-build }}",
+              "run_type": "${{ needs.get-howso-synthesizer-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-synthesizer-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-synthesizer-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-synthesizer-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-synthesizer-py-details.outputs.url }}"
+            },
+            "howso-validator-py": {
+              "run_id": "${{ inputs.howso-validator-py-build }}",
+              "run_type": "${{ needs.get-howso-validator-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-validator-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-validator-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-validator-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-validator-py-details.outputs.url }}"
+            },
+            "howso-validator-enterprise-py": {
+              "run_id": "${{ inputs.howso-validator-enterprise-py-build }}",
+              "run_type": "${{ needs.get-howso-validator-enterprise-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-validator-enterprise-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-validator-enterprise-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-validator-enterprise-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-validator-enterprise-py-details.outputs.url }}"
+            },
+          } 
+          EOF
+          )
+              
+          # Iterate through the full details JSON, and add those with run IDs present to the filtered JSON
+          while read -r repo; do
+            run_id=$(echo "$details" | jq --arg repo "$repo" '".$repo"."run_id"')
+            echo "Discovered run_id '$run_id' for repo $repo"
+            all_details=$(echo "$details" | jq --arg repo "$repo" '".$repo"')
+            if [[ -n "$run_id" ]]; then
+              filtered_details=$(echo "$filtered_details" | jq --arg all_details "$all_details" --arg repo "$repo" '. + {"$repo": $all_details}')
+            else
+              echo "Skipping (empty run_id)"
+            fi
+          done <<(echo "$details" | jq -rc 'keys[]')
+          echo "Filtered upstream details: $filtered_details"
+          echo "upstream-details=$(echo $filtered_details)" >> $GITHUB_OUTPUT
+  
+  set-version:
+    needs: ['set-metadata']
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.choose-version.outputs.version }}
+    steps:
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get previous git tag
+        id: previous-tag
+        run: |
+          tag=$(git for-each-ref --sort=-creatordate --count 5 --format="%(refname:short)" "refs/tags/" | grep -E "^[0-9]+\.[0-9]+\.[0-9]+" | head -n 1)
+          echo "Found tag: $tag"
+          echo "tag=$(echo tag)" >> $GITHUB_OUTPUT
+
+      - name: Get next semver from previous tag
+        id: next-semvers
+        uses: WyriHaximus/github-action-next-semvers@v1
+        with:
+          version: ${{ steps.previous-tag.outputs.tag }}
+
+      - name: Set PR version
+        if: needs.set-metadata.outputs.build-type == 'PR'
+        id: set-pr-version
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          PR_ITERATION=${{ github.run_attempt }}.${{ github.run_number }}
+          echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+PR.${PR_NUMBER}.${PR_ITERATION})" >> $GITHUB_OUTPUT
+
+      - name: Set Branch version
+        if: needs.set-metadata.outputs.build-type == ''
+        id: set-branch-version
+        run: |
+          BRANCH_ITERATION=${{ github.run_attempt }}.${{ github.run_number }}
+          echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+BR.${{ github.ref_name }}.${BRANCH_ITERATION})" >> $GITHUB_OUTPUT
+
+      - name: Format version string
+        if: steps.set-pr-version != '' || steps.set-branch-version != ''
+        id: format-version
+        run: |
+          if [[ -n "${{ steps.set-pr-version.outputs.version }}" ]]; then
+            echo "Found PR version..."
+            semver=${{ steps.set-pr-version.outputs.version }}
+          else
+            echo "Found branch version..."
+            semver=${{ steps.set-branch-version.outputs.version }}
+          fi
+          # If this is not a Python repo, do nothing
+          if ! [[ "${{ github.repository }}" =~ "-py" ]]; then
+            echo "Current repository is not a Python project, nothing to do."
+            echo "version=$semver" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Per PEP 440, the full scope of traditional semantic versioning is not valid in Python.
+          int_only_br=$(echo "${{ github.ref_name }}" | sed 's/[^0-9]*//g')
+          metadata=".dev$int_only_br"
+          pepified_version=$(echo "$semver" | sed -r -e 's/-alpha/a0/g' -e 's/-beta/b0/g' -e 's/\+PR./\.dev/g' -e "s|\+BR.${{ github.ref_name }}.|$metadata|g" -e 's/([0-9]+\.[0-9]+\.[0-9]+)([a-b0-9]+)?([\.dev]+)?(([0-9]+)\.([0-9]+)(\.([0-9]+))?)?/\1\2\3\5\6\8/g')
+          echo "Tagged version converted to PEP 440 standard: $pepified_version"
+          echo "version=$pepified_version" >> $GITHUB_OUTPUT
+
+      - name: Construct release tag
+        if: needs.set-metadata.outputs.build-type == 'release'
+        id: set-release-version
+        run: |
+          RELEASE_TAG=""
+
+          # If tag not given by user, deduce from commit titles since last tag:
+          if test -z "${{ inputs.optional-release-tag }}"; then
+            echo "Autoincrementing version based on previous commit titles since last tag"
+
+            # Search previous commits for MAJOR/MINOR text tokens:
+            IS_MAJOR_BUMP=false
+            IS_MINOR_BUMP=false
+            echo "Checking commit titles since last tag: '${{ steps.previous-tag.outputs.tag }}'..."
+            COMMITS=$(git log --pretty=format:%s ${{ steps.previous-tag.outputs.tag }}..@)
+            while read commit
+            do
+              if [[ $commit == *"MAJOR"* ]]; then
+                echo -e "\tMajor: title='$commit'"
+                IS_MAJOR_BUMP=true
+              elif [[ $commit == *"MINOR"* ]]; then
+                echo -e "\tMinor: title='$commit'"
+                IS_MINOR_BUMP=true
+              else
+                echo -e "\tPatch: title='$commit'"
+              fi
+            done <<< "$COMMITS"
+
+            # Set version according to what was found in commit titles:
+            if [ "$IS_MAJOR_BUMP" = true ]; then
+              echo "Bumping major version"
+              RELEASE_TAG=${{ steps.next-semvers.outputs.major }}
+            elif [ "$IS_MINOR_BUMP" = true ]; then
+              echo "Bumping minor version"
+              RELEASE_TAG=${{ steps.next-semvers.outputs.minor }}
+            else
+              # If no major/minor found, treat as patch:
+              echo "Bumping patch version"
+              RELEASE_TAG=${{ steps.next-semvers.outputs.patch }}
+            fi
+          else
+            echo "Using user provided release tag"
+            RELEASE_TAG=${{ inputs.optional-release-tag }}
+          fi
+
+          # Check if valid semver:
+          regex='^([0-9]+\.){2}(\*|[0-9]+)(-.*)?$'
+          if [[ ! "$RELEASE_TAG" =~ $regex ]]; then
+            echo "❌ - Release tag is not a valid semver: $RELEASE_TAG"
+            exit 1
+          fi
+          echo "✔ - Release tag is a valid semver"
+
+          # Check if tag already exists:
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "❌ - Release tag already exists: $RELEASE_TAG"
+            exit 1
+          fi
+          echo "✔ - Release tag does not exist"
+
+          echo "Release tag: $RELEASE_TAG"
+          echo "version=$(echo $RELEASE_TAG)" >> $GITHUB_OUTPUT
+    
+      - name: choose-version
+        id: choose-version
+        run: |
+          if [[ -n "${{ steps.format-version.outputs.version }}" ]]; then
+            echo "Setting PR/branch version"
+            echo "version=${{ steps.format-version.outputs.version }}"
+          elif [[ -n "${{ steps.set-release-version.outputs.version }}" ]]; then
+            echo "Setting release version"
+            echo "version=${{ steps.set-release-version.outputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "There was a problem (version could not be determined)"
+            exit 1
+          fi
