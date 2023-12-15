@@ -1,4 +1,4 @@
-name: Create PR Build
+name: Build PR
 run-name: "PR Build: #${{ github.event.pull_request.number }} (${{ github.run_attempt }}.${{ github.run_number }}) - ${{ github.event.pull_request.title }}"
 
 on:
@@ -27,7 +27,7 @@ jobs:
       upstream-packages: ['amalgam-lang-py howso-engine-py howso-synthesizer-py howso-validator-py howso-validator-enterprise-py']
 
   build:
-    needs: ['set-pr-version', 'gen-requirements']
+    needs: ['gen-requirements']
     uses: "./.github/workflows/build.yml"
     secrets: inherit
     with:

@@ -87,13 +87,18 @@ jobs:
             run_type=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-type"')
             run_id=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-id"')
             # Amalgam and howso-engine downloads need to be placed in their embedded location
+            IFS='-' read -r plat arch <<< "${{ inputs.amalgam-plat-arch }}"
             if [[ "$repo" == "amalgam" ]]; then
-              gh $run_type download -D amalgam/lib/$plat/amd64 -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}*" "$run_id"
+              echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
+              gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}*" "$run_id"
               # Extract binaries
-              cd amalgam/lib
+              cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+              cd ../..
               find . -type d -name lib -exec sh -c 'mv {}/* "$(dirname {})"' \;
+              ls -l ./$plat/$arch
             elif [[ "$repo" == "howso-engine" ]]; then
-              gh $run_type download -D howso/howso-engine -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
+              echo "Downloading and extracting Howso Engine CAMLs..."
+              gh $run_type download -D howso/howso-engine -R "howsoai/$repo" -p "howso-engine-*" "$run_id"
               # Extract CAMLs
               cd howso/howso-engine && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
             else

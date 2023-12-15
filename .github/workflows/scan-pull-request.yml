@@ -8,9 +8,6 @@ on:
         type: string
         required: false
 
-permissions:
-  contents: read
-
 jobs:
 
   scan-pull-request:
