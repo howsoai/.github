@@ -82,7 +82,7 @@ jobs:
           elif [[ -n "$build" ]]; then
             payload=$(echo "$payload" | jq --arg build "$build" --arg repo "$repo" '. + {"$repo": $build}')
           fi
-        done <<(echo "$builds_json" | jq -rc 'keys[]')
+        done < <(echo "$builds_json" | jq -rc 'keys[]')
 
         fmtd_payload=$(echo -n "$payload" | tr -d '\n')
         echo "Formatted payload: $fmtd_payload"
@@ -241,7 +241,7 @@ jobs:
             else
               echo "Skipping (empty run_id)"
             fi
-          done <<(echo "$details" | jq -rc 'keys[]')
+          done < <(echo "$details" | jq -rc 'keys[]')
           echo "Filtered upstream details: $filtered_details"
           echo "upstream-details=$(echo $filtered_details)" >> $GITHUB_OUTPUT
   
@@ -261,7 +261,7 @@ jobs:
         run: |
           tag=$(git for-each-ref --sort=-creatordate --count 5 --format="%(refname:short)" "refs/tags/" | grep -E "^[0-9]+\.[0-9]+\.[0-9]+" | head -n 1)
           echo "Found tag: $tag"
-          echo "tag=$(echo tag)" >> $GITHUB_OUTPUT
+          echo "tag=$(echo $tag)" >> $GITHUB_OUTPUT
 
       - name: Get next semver from previous tag
         id: next-semvers

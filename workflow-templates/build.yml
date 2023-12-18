@@ -98,6 +98,15 @@ jobs:
         run: |
           echo "TODO"
 
+  workflow-summary:
+    needs: ['metadata']
+    if: inputs.build-type != 'release'
+    uses: "howsoai/.github/.github/workflows/workflow-summary.yml@main"
+    secrets: inherit
+    with:
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+
+  # EXAMPLE PYTEST JOB
   # Remove if not a Python project
   pytest-linux-3-8-st:
     needs: ['metadata', 'build']
@@ -106,10 +115,10 @@ jobs:
     with:
       platform: 'howso-ubuntu-runner-latest'
       platform-pretty: 'Linux'
+      amalgam-plat-arch: 'linux-amd64'
       python-version: '3.8'
-      workers: '16'
       config-fp: './config/howso-st-debug.yml'
-      config-pretty: 'Amalgam -st'
+      config-pretty: 'ST'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   release:

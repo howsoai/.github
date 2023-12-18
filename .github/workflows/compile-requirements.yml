@@ -95,6 +95,10 @@ jobs:
         run: |
           # Pull latest changes
           git pull
+          # Set extra index URL
+          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          fi
           # Install pip-tools and run pip-compile
           pip install -U pip pip-tools
           if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
@@ -108,13 +112,20 @@ jobs:
         if: matrix.type == 'licenses'
         id: gen-licenses
         run: |
-          pip install -e ."${{ inputs.optional-dependencies }}"
+          # Set extra index URL
+          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          fi
+          pip install -r requirements-3.11.txt
+          # Allow this to fail in case the current repository isn't an installable Python package (i.e., recipes)
+          pip install -e ."${{ inputs.optional-dependencies }}" || true
           # Do not include Howso software in the 3rd party license file
           this_repo="${{ github.repository }}"
           this_repo=${this_repo//-py/}  # Remove the "-py" postfix
           upstream_packages="${{ inputs.upstream-packages }}"
           upstream_packages=${upstream_packages//-py/}  # Remove all "-py" postfixes
-          pip uninstall $upstream_packages $this_repo -y
+          pip uninstall $upstream_packages
+          pip uninstall $this_repo || true
           rm -f LICENSE-3RD-PARTY.txt
           pip install pip-licenses
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
