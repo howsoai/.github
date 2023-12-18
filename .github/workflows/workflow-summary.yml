@@ -6,6 +6,11 @@ on:
       upstream-details:
         type: string
         required: true
+      amalgam-plat-arch:
+        description: The platform/arch string to match when downloading Amalgam builds (ex. "linux-amd64", "darwin-arm64")
+        required: false
+        type: string
+        default: "linux-amd64"
 
 jobs:
 
@@ -61,14 +66,14 @@ jobs:
               # Needed because release/non-release downloads are different structure
               cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
             fi
-          done <<(echo "${{ inputs.upstream-details }}" | jq -rc 'keys[]')
+          done < <(echo "${{ inputs.upstream-details }}" | jq -rc 'keys[]')
 
       - name: Generate workflow summary
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
           # Install requirements
-          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}"" ]]; then
+          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           pip install -r requirements-3.11.txt --user

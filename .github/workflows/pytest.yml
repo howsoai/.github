@@ -105,7 +105,7 @@ jobs:
               # Needed because release/non-release downloads are different structure
               cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
             fi
-          done <<(echo "${{ inputs.upstream-details }}" | jq -rc 'keys[]')
+          done < <(echo "${{ inputs.upstream-details }}" | jq -rc 'keys[]')
 
       - name: Configure MacOS environment
         if: inputs.platform-pretty == 'MacOS'
@@ -130,7 +130,7 @@ jobs:
       - name: Run unit tests
         run: |
           python --version
-          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}"" ]]; then
+          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           if [[ -n "${{ inputs.config-fp }}"]]; then
