@@ -95,6 +95,12 @@ jobs:
         run: |
           # Pull latest changes
           git pull
+          echo "$(git log --pretty=%B -n 3)"
+          # Skip this if all supported Python versions have been compiled already
+          if [[ "$(git log --pretty=%B -n 2)" == *"Automated requirements/license generation [3.11]"* ]]; then
+            echo "Requirements already generated. Skipping."
+            exit 0
+          fi
           # Set extra index URL
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple

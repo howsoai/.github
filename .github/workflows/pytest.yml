@@ -43,6 +43,10 @@ on:
         required: false
         default: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
 
   test:
@@ -121,27 +125,33 @@ jobs:
         if: inputs.platform-pretty == 'Windows'
         shell: pwsh
         run: |
-          if [ -e "./build/powershell/Download-Tzdata.ps1" ]; then
-            ./build/powershell/Download-Tzdata.ps1
-          else
-            echo "Download-Tzdata script not found"
-          fi
+          if (Test-Path "./build/powershell/Download-Tzdata.ps1") {
+            & "./build/powershell/Download-Tzdata.ps1"
+          } else {
+              Write-Host "Download-Tzdata script not found"
+          }
 
       - name: Run unit tests
         run: |
           python --version
+          pip --version
+          python -m pip install --upgrade pip
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
-          if [[ -n "${{ inputs.config-fp }}"]]; then
+          if [[ -n "${{ inputs.config-fp }}" ]]; then
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
           # Install the current package (unless this repo is not a package, e.g., BDD)
-          if [ "${{ inputs.no-self-install }}" = false ]; then
+          if [ ${{ inputs.no-self-install }} = false ]; then
             echo "Doing editable install..."
             pip install -e .${{ inputs.optional-dependencies }}
           fi
-          pip install -r requirements-${{ inputs.python-version }}.txt --user
+          pip install -r requirements-${{ inputs.python-version }}.txt --no-deps
+          # Install dev requirements if they exist
+          if [[ -n "requirements-dev.in" ]]; then
+            pip install -r requirements-dev.in
+          fi
           # Install any custom package versions
           declare -a arr=("howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
           for repo in "${arr[@]}"; do
