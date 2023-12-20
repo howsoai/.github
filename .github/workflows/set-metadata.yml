@@ -296,7 +296,7 @@ jobs:
             semver=${{ steps.set-branch-version.outputs.version }}
           fi
           # If this is not a Python repo, do nothing
-          if ! [[ "${{ github.repository }}" =~ "-py" ]]; then
+          if ! [[ "${{ github.event.repository.name }}" =~ "-py" ]]; then
             echo "Current repository is not a Python project, nothing to do."
             echo "version=$semver" >> $GITHUB_OUTPUT
             exit 0

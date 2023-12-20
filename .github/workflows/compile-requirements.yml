@@ -16,9 +16,13 @@ on:
 jobs:
   check-requirements:
     runs-on: ubuntu-latest
+    permissions: write-all
+    env:
+      GH_TOKEN: ${{ github.token }}
     outputs:
       dev_req_file: ${{ steps.detect-changes.outputs.dev-req-file }}
     steps:
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
@@ -61,10 +65,11 @@ jobs:
   compile-requirements:
     needs: ['check-requirements']
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    permissions: write-all
     outputs:
       changes-pushed: ${{ steps.commit-changes.outputs.changes-pushed }}
+    env:
+      GH_TOKEN: ${{ github.token }}
     strategy:
       max-parallel: 1  # Necessary to avoid merge conflicts
       matrix:
@@ -76,7 +81,7 @@ jobs:
           # Check out with a PAT so that the workflow can make commits that re-trigger the PR build
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
           ref: ${{ github.head_ref }}
-
+      
       - name: Set up Python
         if: matrix.type != 'licenses'
         uses: actions/setup-python@v4
@@ -93,6 +98,14 @@ jobs:
         if: matrix.type != 'licenses'
         id: compile-requirements
         run: |
+          # Skip if this version has already been checked
+          labels=$(gh pr view --json labels "${{ github.head_ref }}")
+          while IFS= read -r label; do
+            if [[ "$label" == "generated requirements [${{ matrix.type }}]" ]]; then
+              echo "Requirements for Python ${{ matrix.type }} have already been reevaluated. Skipping."
+              exit 0
+            fi
+          done < <(echo "$labels" | jq -r '.labels[] | .name')
           # Pull latest changes
           git pull
           # Set extra index URL
@@ -107,11 +120,24 @@ jobs:
           else
             pip-compile --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe --output-file requirements-${{ matrix.type }}.txt
           fi
+          # Add a label to indicate that this version has already been checked
+          gh pr edit --add-label "generated requirements [${{ matrix.type }}]" "${{ github.head_ref }}"
 
       - name: Generate third-party licenses
         if: matrix.type == 'licenses'
         id: gen-licenses
         run: |
+          # Skip if this version has already been checked
+          labels=$(gh pr view --json labels "${{ github.head_ref }}")
+          while IFS= read -r label; do
+            if [[ "$label" == "generated licenses" ]]; then
+              echo "Requirements for Python ${{ matrix.type }} have already been reevaluated. Skipping."
+              exit 0
+            fi
+          done < <(echo "$labels" | jq -r '.labels[] | .name')
+          # Pull latest changes
+          git pull
+          rm -f ./LICENSE-3RD-PARTY.txt
           # Set extra index URL
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
@@ -120,15 +146,17 @@ jobs:
           # Allow this to fail in case the current repository isn't an installable Python package (i.e., recipes)
           pip install -e ."${{ inputs.optional-dependencies }}" || true
           # Do not include Howso software in the 3rd party license file
-          this_repo="${{ github.repository }}"
+          this_repo="${{ github.event.repository.name }}"
           this_repo=${this_repo//-py/}  # Remove the "-py" postfix
           upstream_packages="${{ inputs.upstream-packages }}"
           upstream_packages=${upstream_packages//-py/}  # Remove all "-py" postfixes
           pip uninstall $upstream_packages -y
           pip uninstall $this_repo -y || true
-          rm -f LICENSE-3RD-PARTY.txt
           pip install pip-licenses
+          pip list | grep howso
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
+          # Add a label to indicate that licenses have already been generated
+          gh pr edit --add-label "generated licenses" "${{ github.head_ref }}"
 
       - name: Commit changes
         id: commit-changes
@@ -144,3 +172,31 @@ jobs:
           else
             echo "No changes detected in the repository."
           fi
+  
+  update-labels:
+    needs: ['compile-requirements']
+    runs-on: ubuntu-latest
+    permissions: write-all
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+
+      - uses: actions/checkout@v4
+        with:
+          # Check out with a PAT so that the workflow can make commits that re-trigger the PR build
+          token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+          ref: ${{ github.head_ref }}
+
+      - name: Remove labels
+        run: |
+          automated_labels=("generated requirements [3.8]" "generated requirements [3.9]" "generated requirements [3.10]" "generated requirements [3.11]" "generated licenses")
+          labels=$(gh pr view --json labels "${{ github.head_ref }}")
+
+          echo "$labels" | jq -r '.labels[] | .name' | while read -r label; do
+            for auto_label in "${automated_labels[@]}"; do
+              if [[ "$label" == "$auto_label" ]]; then
+                  echo "Found label: $label"
+                  gh pr edit --remove-label "$label" "${{ github.head_ref }}"
+              fi
+            done
+          done

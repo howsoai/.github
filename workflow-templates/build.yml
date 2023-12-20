@@ -130,5 +130,5 @@ jobs:
       with:
         tag: ${{ needs.metadata.outputs.version }}
         commit: ${{ github.sha }}
-        name: "${{ github.repository }} ${{ needs.metadata.outputs.version }}"
+        name: "${{ github.event.repository.name }} ${{ needs.metadata.outputs.version }}"
         generateReleaseNotes: true
