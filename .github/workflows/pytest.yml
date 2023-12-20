@@ -42,6 +42,11 @@ on:
         type: boolean
         required: false
         default: false
+      workers:
+        description: The number of Pytest workers to use
+        type: string
+        required: false
+        default: auto
 
 defaults:
   run:
@@ -161,7 +166,7 @@ jobs:
               pip install $repo/*.whl
             fi
           done
-          python -m pytest -n auto -s
+          python -m pytest -n ${{ inputs.workers }} -s
 
       - name: Upload trace files
         if: always()
