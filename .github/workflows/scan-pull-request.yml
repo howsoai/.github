@@ -23,6 +23,9 @@ jobs:
 
       - name: Download Artifacts
         run: |
+          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          fi
           mkdir -p dist
           pip download -r requirements-3.11.txt -d ./dist
           # Remove upstream Howso packages since we don't want these to be scanned
@@ -31,6 +34,7 @@ jobs:
             fmtd_pkg=${fmtd_pkg//-/_}  # Change "-" to "_"
             echo "Removing $fmtd_pkg from consideration for scanning."
             rm -f ./dist/$fmtd_pkg*
+          done
 
       - uses: jfrog/setup-jfrog-cli@v3
         env:
