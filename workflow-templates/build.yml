@@ -44,9 +44,6 @@ on:
         type: string
   workflow_call:
     inputs:
-      version:
-        required: true
-        type: string
       payload:
         required: false
         type: string
@@ -117,7 +114,7 @@ jobs:
       platform-pretty: 'Linux'
       amalgam-plat-arch: 'linux-amd64'
       python-version: '3.8'
-      config-fp: './config/howso-st-debug.yml'
+      config-fp: './config/latest-st-debug-howso.yml'
       config-pretty: 'ST'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
