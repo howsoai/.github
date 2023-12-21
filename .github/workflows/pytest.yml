@@ -32,16 +32,6 @@ on:
         required: false
         type: string
         default: "linux-amd64"
-      optional-dependencies:
-        description: An optional dependency installation specification for use with a pyproject.toml.
-        type: string
-        required: false
-        default: "[dev]"
-      no-self-install:
-        description: Set to 'true' if the current repository is not an installable Python package
-        type: boolean
-        required: false
-        default: false
       workers:
         description: The number of Pytest workers to use
         type: string
@@ -93,8 +83,8 @@ jobs:
         run: |
           while read -r repo; do
             echo "Getting details for $repo"
-            run_type=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '.[$repo]."run-type"')
-            run_id=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '.[$repo]."run-id"')
+            run_type=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_type"')
+            run_id=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_id"')
             # Amalgam and howso-engine downloads need to be placed in their embedded location
             IFS='-' read -r plat arch <<< "${{ inputs.amalgam-plat-arch }}"
             if [[ "$repo" == "amalgam" ]]; then
@@ -114,7 +104,7 @@ jobs:
               # Needed because release/non-release downloads are different structure
               cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
             fi
-          done < <(echo "${{ inputs.upstream-details }}" | jq -rc 'keys[]')
+          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
 
       - name: Configure MacOS environment
         if: inputs.platform-pretty == 'MacOS'

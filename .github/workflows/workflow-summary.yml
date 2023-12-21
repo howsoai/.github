@@ -6,11 +6,6 @@ on:
       upstream-details:
         type: string
         required: true
-      optional-dependencies:
-        description: An optional dependency installation specification for use with a pyproject.toml.
-        type: string
-        required: false
-        default: "[dev]"
       no-self-install:
         description: Set to 'true' if the current repository is not an installable Python package
         type: boolean
@@ -55,8 +50,9 @@ jobs:
         run: |
           while read -r repo; do
             echo "Getting details for $repo"
-            run_type=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '.[$repo]."run-type"')
-            run_id=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '.[$repo]."run-id"')
+            run_type=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_type"')
+            run_id=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_id"')
+            echo "Found run_type=$run_type and run_id=$run_id"
             # Amalgam and howso-engine downloads need to be placed in their embedded location
             IFS='-' read -r plat arch <<< "${{ inputs.amalgam-plat-arch }}"
             if [[ "$repo" == "amalgam" ]]; then
@@ -72,11 +68,12 @@ jobs:
               # Extract CAMLs
               cd howso/howso-engine && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
             else
+              echo "Downloading $run_type artifacts..."
               gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
               # Needed because release/non-release downloads are different structure
               cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
             fi
-          done < <(echo "${{ inputs.upstream-details }}" | jq -rc 'keys[]')
+          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
 
       - name: Generate workflow summary
         env:
@@ -93,7 +90,7 @@ jobs:
             if [ -d "$repo" ]; then
               echo "Found custom $repo version; installing..."
               pip uninstall ${repo%-py} -y
-              pip install $repo/*.whl
+              pip install $repo/*.whl --user
             fi
           done
           pip list | grep amalgam
@@ -150,18 +147,28 @@ jobs:
             pkg_version=$(python -c "import importlib.metadata; print(importlib.metadata.version('${repo%-py}'))")
             
             # Get run_id and run_type for the current package
-            run_type=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '."$repo"."run-type"')
-            run_id=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '."$repo"."run-id"')
+            run_type=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_type"')
+            run_id=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_id"')
+            pkg_url=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."url"')
+
+            echo "Found run_type $run_type for repo $repo"
             
             if [[ "$run_type" == "run" ]]; then
+              echo "Building workflow run details"
+              pkg_url=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."url"')
               build_date=$(gh run view --repo howsoai/$repo $run_id --json createdAt | jq '.createdAt')
               build_date=$(python -c "from datetime import datetime; print(datetime.strptime($build_date, '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
               branch=$(gh run view --repo howsoai/$repo $run_id --json headBranch | jq '.headBranch')
+              pkg_sha=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."head_sha"')
               pkg_notes=$(echo "Branch build of \`$branch\`")
               pkg_version=$(echo "$pkg_version ($build_date)")
-              pkg_sha=$(gh run view --repo howsoai/$repo $run_id --json headSha | jq '.headSha')
-              pkg_url=$(gh run view --repo howsoai/$repo $run_id --json url | jq '.url')
+            elif [[ "$run_type" == "release" ]]; then
+              echo "Building release details (release specified in upstream-details)"
+              pkg_notes=$(echo "Release version specified in Python requirements")
+              pkg_sha=$(gh release view --repo howsoai/$repo $run_id --json targetCommitish | jq '.targetCommitish')
             else
+              echo "Building release details (release NOT in upstream-details)"
+              run_id=$(echo "$pkg_version")
               pkg_notes=$(echo "Release version specified in Python requirements")
               pkg_sha=$(gh release view --repo howsoai/$repo $run_id --json targetCommitish | jq '.targetCommitish')
               pkg_url=$(gh release view --repo howsoai/$repo $run_id --json url | jq '.url')
