@@ -116,9 +116,11 @@ jobs:
           pip install -U pip pip-tools
           if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
             # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
-            pip-compile requirements.in requirements-dev.in --resolver=backtracking --upgrade requirements.in --generate-hashes --no-emit-index-url --allow-unsafe --output-file requirements-${{ matrix.type }}.txt
+            pip-compile requirements.in requirements-dev.in --resolver=backtracking --upgrade requirements.in --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-${{ matrix.type }}.txt
           else
-            pip-compile --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe --output-file requirements-${{ matrix.type }}.txt
+            # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
+            pip-compile --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-${{ matrix.type }}.txt
+            pip-compile --extra dev --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-${{ matrix.type }}-dev.txt
           fi
           # Add a label to indicate that this version has already been checked
           gh pr edit --add-label "generated requirements [${{ matrix.type }}]" "${{ github.head_ref }}"

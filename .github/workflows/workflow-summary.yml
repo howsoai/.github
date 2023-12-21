@@ -55,8 +55,8 @@ jobs:
         run: |
           while read -r repo; do
             echo "Getting details for $repo"
-            run_type=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-type"')
-            run_id=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '".$repo"."run-id"')
+            run_type=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '."$repo"."run-type"')
+            run_id=$(echo "${{ inputs.upstream-details }}" | jq --arg repo "$repo" '."$repo"."run-id"')
             # Amalgam and howso-engine downloads need to be placed in their embedded location
             IFS='-' read -r plat arch <<< "${{ inputs.amalgam-plat-arch }}"
             if [[ "$repo" == "amalgam" ]]; then

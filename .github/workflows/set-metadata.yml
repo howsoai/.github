@@ -66,7 +66,7 @@ jobs:
           "howso-engine-py": "${{ inputs.howso-engine-py-build }}",
           "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
           "howso-validator-py": "${{ inputs.howso-validator-py-build }}",
-          "howso-validator-enterprise-py": "${{ inputs.howso-validator-enterprise-py-build }}",
+          "howso-validator-enterprise-py": "${{ inputs.howso-validator-enterprise-py-build }}"
         } 
         EOF
         )
@@ -75,7 +75,7 @@ jobs:
 
         # If the provided build is a URL, extract the run ID. Else, if the build exists, add it to the payload JSON.
         while read -r repo; do
-          build=$(echo "$builds_json" | jq --arg repo "$repo" '".$repo"')
+          build=$(echo "$builds_json" | jq --arg repo "$repo" '."$repo"')
           echo "Discovered build '$build' for repo $repo"
           if [[ "$build" =~ runs/([0-9]+) ]]; then
             payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" --arg repo "$repo" '. + {"$repo": $run_id}')
@@ -226,16 +226,16 @@ jobs:
               "build_title": "${{ needs.get-howso-validator-enterprise-py-details.outputs.build-title }}",
               "head_sha": "${{ needs.get-howso-validator-enterprise-py-details.outputs.head-sha }}",
               "url": "${{ needs.get-howso-validator-enterprise-py-details.outputs.url }}"
-            },
+            }
           } 
           EOF
           )
               
           # Iterate through the full details JSON, and add those with run IDs present to the filtered JSON
           while read -r repo; do
-            run_id=$(echo "$details" | jq --arg repo "$repo" '".$repo"."run_id"')
+            run_id=$(echo "$details" | jq --arg repo "$repo" '."$repo"."run_id"')
             echo "Discovered run_id '$run_id' for repo $repo"
-            all_details=$(echo "$details" | jq --arg repo "$repo" '".$repo"')
+            all_details=$(echo "$details" | jq --arg repo "$repo" '."$repo"')
             if [[ -n "$run_id" ]]; then
               filtered_details=$(echo "$filtered_details" | jq --arg all_details "$all_details" --arg repo "$repo" '. + {"$repo": $all_details}')
             else
