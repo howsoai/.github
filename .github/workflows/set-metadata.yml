@@ -86,8 +86,9 @@ jobs:
           fi
         done < <(echo "$builds_json" | jq -rc 'keys[]')
 
-        echo "Payload: $payload"
-        echo "payload=$payload" >> $GITHUB_OUTPUT
+        fmtd_payload=$(echo "$payload" | jq -c)
+        echo "Payload: $fmtd_payload"
+        echo "payload=$fmtd_payload" >> $GITHUB_OUTPUT
 
   get-howso-synthesizer-py-details:
     needs: ['construct-payload']
@@ -173,7 +174,7 @@ jobs:
           details=$(cat <<EOF
           {
             "amalgam": {
-              "run_id": "${{ inputs.amalgam-build }}",
+              "run_id": "${{ needs.get-amalgam-details.outputs.run-id }}",
               "run_type": "${{ needs.get-amalgam-details.outputs.run-type }}",
               "build_date": "${{ needs.get-amalgam-details.outputs.build-date }}",
               "build_title": "${{ needs.get-amalgam-details.outputs.build-title }}",
@@ -181,7 +182,7 @@ jobs:
               "url": "${{ needs.get-amalgam-details.outputs.url }}"
             },
             "amalgam-lang-py": {
-              "run_id": "${{ inputs.amalgam-lang-py-build }}",
+              "run_id": "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}",
               "run_type": "${{ needs.get-amalgam-lang-py-details.outputs.run-type }}",
               "build_date": "${{ needs.get-amalgam-lang-py-details.outputs.build-date }}",
               "build_title": "${{ needs.get-amalgam-lang-py-details.outputs.build-title }}",
@@ -189,7 +190,7 @@ jobs:
               "url": "${{ needs.get-amalgam-lang-py-details.outputs.url }}"
             },
             "howso-engine": {
-              "run_id": "${{ inputs.howso-engine-build }}",
+              "run_id": "${{ needs.get-howso-engine-details.outputs.run-id }}",
               "run_type": "${{ needs.get-howso-engine-details.outputs.run-type }}",
               "build_date": "${{ needs.get-howso-engine-details.outputs.build-date }}",
               "build_title": "${{ needs.get-howso-engine-details.outputs.build-title }}",
@@ -197,7 +198,7 @@ jobs:
               "url": "${{ needs.get-howso-engine-details.outputs.url }}"
             },
             "howso-engine-py": {
-              "run_id": "${{ inputs.howso-engine-py-build }}",
+              "run_id": "${{ needs.get-howso-engine-py-details.outputs.run-id }}",
               "run_type": "${{ needs.get-howso-engine-py-details.outputs.run-type }}",
               "build_date": "${{ needs.get-howso-engine-py-details.outputs.build-date }}",
               "build_title": "${{ needs.get-howso-engine-py-details.outputs.build-title }}",
@@ -205,7 +206,7 @@ jobs:
               "url": "${{ needs.get-howso-engine-py-details.outputs.url }}"
             },
             "howso-synthesizer-py": {
-              "run_id": "${{ inputs.howso-synthesizer-py-build }}",
+              "run_id": "${{ needs.get-howso-synthesizer-py-details.outputs.run-id }}",
               "run_type": "${{ needs.get-howso-synthesizer-py-details.outputs.run-type }}",
               "build_date": "${{ needs.get-howso-synthesizer-py-details.outputs.build-date }}",
               "build_title": "${{ needs.get-howso-synthesizer-py-details.outputs.build-title }}",
@@ -213,7 +214,7 @@ jobs:
               "url": "${{ needs.get-howso-synthesizer-py-details.outputs.url }}"
             },
             "howso-validator-py": {
-              "run_id": "${{ inputs.howso-validator-py-build }}",
+              "run_id": "${{ needs.get-howso-validator-py-details.outputs.run-id }}",
               "run_type": "${{ needs.get-howso-validator-py-details.outputs.run-type }}",
               "build_date": "${{ needs.get-howso-validator-py-details.outputs.build-date }}",
               "build_title": "${{ needs.get-howso-validator-py-details.outputs.build-title }}",
@@ -221,7 +222,7 @@ jobs:
               "url": "${{ needs.get-howso-validator-py-details.outputs.url }}"
             },
             "howso-validator-enterprise-py": {
-              "run_id": "${{ inputs.howso-validator-enterprise-py-build }}",
+              "run_id": "${{ needs.get-howso-validator-enterprise-py-details.outputs.run-id }}",
               "run_type": "${{ needs.get-howso-validator-enterprise-py-details.outputs.run-type }}",
               "build_date": "${{ needs.get-howso-validator-enterprise-py-details.outputs.build-date }}",
               "build_title": "${{ needs.get-howso-validator-enterprise-py-details.outputs.build-title }}",
@@ -238,14 +239,14 @@ jobs:
             echo "Checking $repo"
             echo "Discovered run_id $run_id for repo $repo"
             all_details=$(echo "$details" | jq --arg repo "$repo" '.[$repo]')
-            if [[ -n "$run_id" ]]; then
+            if [[ -n "$run_id" && "$run_id" != "\"\"" ]]; then
               filtered_details=$(echo "$filtered_details" | jq --arg repo "$repo" --argjson all_details "$all_details" '. + { ($repo): $all_details }')
             else
               echo "Skipping (empty run_id)"
             fi
           done < <(echo "$details" | jq -rc 'keys[]')
           echo "Filtered upstream details: $filtered_details"
-          echo "upstream-details=$(echo $filtered_details)" >> $GITHUB_OUTPUT
+          echo "upstream-details=$(echo "$filtered_details" | jq -c)" >> $GITHUB_OUTPUT
   
   set-version:
     needs: ['set-metadata']
