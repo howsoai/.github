@@ -376,7 +376,7 @@ jobs:
         run: |
           if [[ -n "${{ steps.format-version.outputs.version }}" ]]; then
             echo "Setting PR/branch version"
-            echo "version=${{ steps.format-version.outputs.version }}"
+            echo "version=${{ steps.format-version.outputs.version }}" >> $GITHUB_OUTPUT
           elif [[ -n "${{ steps.set-release-version.outputs.version }}" ]]; then
             echo "Setting release version"
             echo "version=${{ steps.set-release-version.outputs.version }}" >> $GITHUB_OUTPUT

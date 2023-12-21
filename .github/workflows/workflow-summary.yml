@@ -6,6 +6,16 @@ on:
       upstream-details:
         type: string
         required: true
+      optional-dependencies:
+        description: An optional dependency installation specification for use with a pyproject.toml.
+        type: string
+        required: false
+        default: "[dev]"
+      no-self-install:
+        description: Set to 'true' if the current repository is not an installable Python package
+        type: boolean
+        required: false
+        default: false
       amalgam-plat-arch:
         description: The platform/arch string to match when downloading Amalgam builds (ex. "linux-amd64", "darwin-arm64")
         required: false
@@ -72,11 +82,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
-          # Install requirements
+          python -m pip install --upgrade pip
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
-          pip install -r requirements-3.11.txt --user
+          ./bin/build.sh install_deps 3.11
           # Install any custom package versions
           declare -a arr=("howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
           for repo in "${arr[@]}"; do
@@ -86,11 +96,14 @@ jobs:
               pip install $repo/*.whl
             fi
           done
+          pip list | grep amalgam
+          pip list | grep howso
 
           # Determine site-packages location (to retrieve version.json)
           site_packages=$(python -m site --user-site)
 
           # Get amalgam metadata from version.json
+          ls -l $site_packages/amalgam/lib/
           amlg_version=$(jq -r '.version.amalgam' $site_packages/amalgam/lib/version.json)
           amlg_sha=$(jq -r '.version."amalgam_sha"' $site_packages/amalgam/lib/version.json)
           amlg_url=$(jq -r '.version."amalgam_url"' $site_packages/amalgam/lib/version.json)

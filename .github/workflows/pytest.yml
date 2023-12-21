@@ -138,8 +138,6 @@ jobs:
 
       - name: Run unit tests
         run: |
-          python --version
-          pip --version
           python -m pip install --upgrade pip
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
@@ -147,16 +145,7 @@ jobs:
           if [[ -n "${{ inputs.config-fp }}" ]]; then
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
-          # Install the current package (unless this repo is not a package, e.g., BDD)
-          if [ ${{ inputs.no-self-install }} = false ]; then
-            echo "Doing editable install..."
-            pip install -e .${{ inputs.optional-dependencies }}
-          fi
-          pip install -r requirements-${{ inputs.python-version }}.txt --no-deps
-          # Install dev requirements if they exist
-          if [[ -n "requirements-dev.in" ]]; then
-            pip install -r requirements-dev.in
-          fi
+          ./bin/build.sh install_deps ${{ inputs.python-version }}
           # Install any custom package versions
           declare -a arr=("howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
           for repo in "${arr[@]}"; do
@@ -166,6 +155,9 @@ jobs:
               pip install $repo/*.whl
             fi
           done
+          pip list | grep amalgam
+          pip list | grep howso
+          echo "Running pytests..."
           python -m pytest -n ${{ inputs.workers }} -s
 
       - name: Upload trace files
