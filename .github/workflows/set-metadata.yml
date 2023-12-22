@@ -163,8 +163,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       upstream-details: ${{ steps.set-metadata-details.outputs.upstream-details }}
-      build-type: ${{ steps.set-metadata-details.outputs.build-type }}
-      config-file: ${{ steps.set-metadata-details.outputs.config-file }}
     steps:
 
       - name: set-metadata-details
@@ -273,7 +271,7 @@ jobs:
           version: ${{ steps.previous-tag.outputs.tag }}
 
       - name: Set PR version
-        if: needs.set-metadata.outputs.build-type == 'PR'
+        if: inputs.build-type == 'PR'
         id: set-pr-version
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
@@ -281,14 +279,14 @@ jobs:
           echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+PR.${PR_NUMBER}.${PR_ITERATION})" >> $GITHUB_OUTPUT
 
       - name: Set Branch version
-        if: needs.set-metadata.outputs.build-type == ''
+        if: inputs.build-type == ''
         id: set-branch-version
         run: |
           BRANCH_ITERATION=${{ github.run_attempt }}.${{ github.run_number }}
           echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+BR.${{ github.ref_name }}.${BRANCH_ITERATION})" >> $GITHUB_OUTPUT
 
       - name: Format version string
-        if: steps.set-pr-version != '' || steps.set-branch-version != ''
+        if: steps.set-pr-version.outputs.version != '' || steps.set-branch-version.outputs.version != ''
         id: format-version
         run: |
           if [[ -n "${{ steps.set-pr-version.outputs.version }}" ]]; then
@@ -312,7 +310,7 @@ jobs:
           echo "version=$pepified_version" >> $GITHUB_OUTPUT
 
       - name: Construct release tag
-        if: needs.set-metadata.outputs.build-type == 'release'
+        if: inputs.build-type == 'release'
         id: set-release-version
         run: |
           RELEASE_TAG=""

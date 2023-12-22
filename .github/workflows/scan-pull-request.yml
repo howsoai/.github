@@ -44,4 +44,9 @@ jobs:
 
       - name: 🐸 scan
         run: |
-          jf s ./dist/ --licenses --watches pipeline-distributed
+          echo "### License & Security Violations" >> out.md
+          jf s ./dist/ --licenses --watches github-actions --format=json 1> out.md || true
+          # If out.txt contains more than one line, save to workflow summary
+          if [[ "$(wc -l out.txt)" != "1 out.md" ]]; then
+            cat out.md >> $GITHUB_STEP_SUMMARY
+          fi
