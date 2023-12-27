@@ -44,9 +44,10 @@ jobs:
 
       - name: 🐸 scan
         run: |
-          echo "### License & Security Violations" >> out.md
-          jf s ./dist/ --licenses --watches github-actions --format=json 1> out.md || true
-          # If out.txt contains more than one line, save to workflow summary
-          if [[ "$(wc -l out.txt)" != "1 out.md" ]]; then
-            cat out.md >> $GITHUB_STEP_SUMMARY
+          # Run a scan, but don't fail if there are problems, and save the exit code/output
+          output=$(jf s ./dist/ --licenses --watches github-actions 1>&2) || exit_code=$?
+          echo "$output"
+          # Check if the command failed and raise a warning if so
+          if [ $exit_code -ne 0 ]; then
+            echo "::warning title=Security and/or license violations found!::Please view the output of the JFrog xray scanner job."
           fi
