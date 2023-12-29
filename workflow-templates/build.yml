@@ -42,6 +42,11 @@ on:
           (Optional) howso-validator-enterprise-py build or version number. Defaults to pinned release.
         required: false
         type: string
+      payload:
+        description: |
+          (Optional) A JSON payload in place of the <repo>-build inputs. Each key should be the exact repo name.
+        required: false
+        type: string
   workflow_call:
     inputs:
       payload:
