@@ -6,11 +6,6 @@ on:
       upstream-details:
         type: string
         required: true
-      no-self-install:
-        description: Set to 'true' if the current repository is not an installable Python package
-        type: boolean
-        required: false
-        default: false
       amalgam-plat-arch:
         description: The platform/arch string to match when downloading Amalgam builds (ex. "linux-amd64", "darwin-arm64")
         required: false
@@ -144,7 +139,12 @@ jobs:
 
           # Get Howso Python package metadata from workflow run or release install
           for repo in "${arr[@]}"; do
-            pkg_version=$(python -c "import importlib.metadata; print(importlib.metadata.version('${repo%-py}'))")
+          pkg_version=$(python -c "
+          import importlib.metadata
+          try:
+            print(importlib.metadata.version('${repo%-py}'))
+          except importlib.metadata.PackageNotFoundError:
+            print('noop')")
             
             # Get run_id and run_type for the current package
             run_type=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_type"')
