@@ -4,7 +4,7 @@ run-name: "PR Build: #${{ github.event.pull_request.number }} (${{ github.run_at
 on:
   pull_request:
     branches:
-      - $default-branch
+      - "main"
 
 defaults:
   run:
@@ -16,14 +16,13 @@ concurrency:
 
 jobs:
 
-  # REMOVE this job if this repo is not a Python package
   gen-requirements:
     uses: "howsoai/.github/.github/workflows/compile-requirements.yml@main"
     secrets: inherit
     with:
-      #######################################################################################
-      # TODO: Replace package names below with relevant Howso dependencies for this project #
-      #######################################################################################
+      ##############################################################################################
+      # TODO: Replace package names below with relevant Howso Python dependencies for this project #
+      ##############################################################################################
       upstream-packages: 'amalgam-lang-py howso-engine-py howso-synthesizer-py howso-validator-py howso-validator-enterprise-py'
 
   build:
@@ -38,9 +37,9 @@ jobs:
     uses: "howsoai/.github/.github/workflows/scan-pull-request.yml@main"
     secrets: inherit
     with:
-      #######################################################################################
-      # TODO: Replace package names below with relevant Howso dependencies for this project #
-      #######################################################################################
+      ##############################################################################################
+      # TODO: Replace package names below with relevant Howso Python dependencies for this project #
+      ##############################################################################################
       upstream-packages: 'amalgam-lang-py howso-engine-py howso-synthesizer-py howso-validator-py howso-validator-enterprise-py'
 
   # This job is here to have only one final step to add for "Status Checks"

@@ -42,16 +42,8 @@ on:
           (Optional) howso-validator-enterprise-py build or version number. Defaults to pinned release.
         required: false
         type: string
-      payload:
-        description: |
-          (Optional) A JSON payload in place of the <repo>-build inputs. Each key should be the exact repo name.
-        required: false
-        type: string
   workflow_call:
     inputs:
-      payload:
-        required: false
-        type: string
       build-type:
         required: false
         type: string
@@ -108,9 +100,8 @@ jobs:
     with:
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
-  # EXAMPLE PYTEST JOB
-  # Remove if not a Python project
   pytest-linux-3-8-st:
+    if: inputs.build-type != 'release'
     needs: ['metadata', 'build']
     uses: howsoai/.github/.github/workflows/pytest.yml@main
     secrets: inherit
@@ -121,6 +112,48 @@ jobs:
       python-version: '3.8'
       config-fp: './config/latest-st-debug-howso.yml'
       config-pretty: 'ST'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+
+  pytest-linux-3-11-mt:
+    if: inputs.build-type != 'release'
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
+    secrets: inherit
+    with:
+      platform: 'howso-ubuntu-runner-latest'
+      platform-pretty: 'Linux'
+      amalgam-plat-arch: 'linux-amd64'
+      python-version: '3.11'
+      config-fp: './config/latest-mt-debug-howso.yml'
+      config-pretty: 'MT'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+
+  pytest-windows-3-11-mt:
+    if: inputs.build-type != 'release'
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
+    secrets: inherit
+    with:
+      platform: 'howso-windows-runner-latest'
+      platform-pretty: 'Windows'
+      amalgam-plat-arch: 'windows-amd64'
+      python-version: '3.11'
+      config-fp: './config/latest-mt-debug-howso.yml'
+      config-pretty: 'MT'
+      upstream-details: ${{ needs.metadata.outputs.upstream-details }}
+
+  pytest-macos-3-11-mt:
+    if: inputs.build-type != 'release'
+    needs: ['metadata', 'build']
+    uses: howsoai/.github/.github/workflows/pytest.yml@main
+    secrets: inherit
+    with:
+      platform: 'macos-latest-xlarge'
+      platform-pretty: 'MacOS'
+      amalgam-plat-arch: 'darwin-arm64'
+      python-version: '3.11'
+      config-fp: './config/latest-mt-debug-howso.yml'
+      config-pretty: 'MT'
       upstream-details: ${{ needs.metadata.outputs.upstream-details }}
 
   release:

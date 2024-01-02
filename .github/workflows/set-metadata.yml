@@ -6,16 +6,7 @@ on:
       build-type:
         required: false
         type: string
-      payload:
-        required: false
-        type: string
       optional-release-tag:
-        required: false
-        type: string
-      amalgam-build:
-        required: false
-        type: string
-      howso-engine-build:
         required: false
         type: string
       amalgam-lang-py-build:
@@ -50,21 +41,11 @@ jobs:
     - name: Construct payload
       id: construct-payload
       run: |
-        if [[ -n "${{ inputs.payload }}" ]]; then
-          echo "Found preconstructed JSON payload"
-          fmtd_payload=$(printf "%s" '${{ inputs.payload }}' | jq -c)
-          echo "Payload: $fmtd_payload"
-          echo "payload=$fmtd_payload" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-
         echo "Constructing JSON payload from raw inputs"
         # Map inputs to repo names in a JSON object
         builds_json=$(cat <<EOF
         {
-          "amalgam": "${{ inputs.amalgam-build }}",
           "amalgam-lang-py": "${{ inputs.amalgam-lang-py-build }}",
-          "howso-engine": "${{ inputs.howso-engine-build }}",
           "howso-engine-py": "${{ inputs.howso-engine-py-build }}",
           "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
           "howso-validator-py": "${{ inputs.howso-validator-py-build }}",
@@ -142,26 +123,8 @@ jobs:
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
 
-  get-howso-engine-details:
-    needs: ['construct-payload']
-    uses: "./.github/workflows/get-dependency-details.yml"
-    secrets: inherit
-    with:
-      owner: "howsoai"
-      repo: "howso-engine"
-      payload: "${{ needs.construct-payload.outputs.payload }}"
-
-  get-amalgam-details:
-    needs: ['construct-payload']
-    uses: "./.github/workflows/get-dependency-details.yml"
-    secrets: inherit
-    with:
-      owner: "howsoai"
-      repo: "amalgam"
-      payload: "${{ needs.construct-payload.outputs.payload }}"
-
   set-metadata:
-    needs: ['get-amalgam-details', 'get-howso-engine-details', 'get-amalgam-lang-py-details', 'get-howso-engine-py-details', 'get-howso-validator-py-details', 'get-howso-validator-enterprise-py-details', 'get-howso-synthesizer-py-details']
+    needs: ['get-amalgam-lang-py-details', 'get-howso-engine-py-details', 'get-howso-validator-py-details', 'get-howso-validator-enterprise-py-details', 'get-howso-synthesizer-py-details']
     runs-on: ubuntu-latest
     outputs:
       upstream-details: ${{ steps.set-metadata-details.outputs.upstream-details }}
@@ -173,14 +136,6 @@ jobs:
           # Construct a JSON object with all detail outputs, and then remove the empty ones
           details=$(cat <<EOF
           {
-            "amalgam": {
-              "run_id": "${{ needs.get-amalgam-details.outputs.run-id }}",
-              "run_type": "${{ needs.get-amalgam-details.outputs.run-type }}",
-              "build_date": "${{ needs.get-amalgam-details.outputs.build-date }}",
-              "build_title": "${{ needs.get-amalgam-details.outputs.build-title }}",
-              "head_sha": "${{ needs.get-amalgam-details.outputs.head-sha }}",
-              "url": "${{ needs.get-amalgam-details.outputs.url }}"
-            },
             "amalgam-lang-py": {
               "run_id": "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}",
               "run_type": "${{ needs.get-amalgam-lang-py-details.outputs.run-type }}",
@@ -188,14 +143,6 @@ jobs:
               "build_title": "${{ needs.get-amalgam-lang-py-details.outputs.build-title }}",
               "head_sha": "${{ needs.get-amalgam-lang-py-details.outputs.head-sha }}",
               "url": "${{ needs.get-amalgam-lang-py-details.outputs.url }}"
-            },
-            "howso-engine": {
-              "run_id": "${{ needs.get-howso-engine-details.outputs.run-id }}",
-              "run_type": "${{ needs.get-howso-engine-details.outputs.run-type }}",
-              "build_date": "${{ needs.get-howso-engine-details.outputs.build-date }}",
-              "build_title": "${{ needs.get-howso-engine-details.outputs.build-title }}",
-              "head_sha": "${{ needs.get-howso-engine-details.outputs.head-sha }}",
-              "url": "${{ needs.get-howso-engine-details.outputs.url }}"
             },
             "howso-engine-py": {
               "run_id": "${{ needs.get-howso-engine-py-details.outputs.run-id }}",
