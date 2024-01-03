@@ -98,7 +98,7 @@ jobs:
           amlg_version=$(jq -r '.version.amalgam' $site_packages/amalgam/lib/version.json)
           amlg_sha=$(jq -r '.version."amalgam_sha"' $site_packages/amalgam/lib/version.json)
           amlg_url=$(jq -r '.version."amalgam_url"' $site_packages/amalgam/lib/version.json)
-          if [[ $(cat $site_packages/amalgam/lib/version.json | jq '.version | has("amalgam_build_date")') == true ]]; then
+          if [[ $(cat $site_packages/amalgam/lib/version.json | jq '.version | has("amalgam_build_date")') == true && $(cat $site_packages/amalgam/lib/version.json | jq '.version.amalgam_build_date') != "\"\"" ]]; then
             # Version is a prerelease (workflow run)
             build_date=$(jq -r '.version."amalgam_build_date"' $site_packages/amalgam/lib/version.json)
             build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
@@ -119,7 +119,7 @@ jobs:
           hse_version=$(jq -r '."version"' $site_packages/howso/howso-engine/version.json)
           hse_sha=$(jq -r '."sha"' $site_packages/howso/howso-engine/version.json)
           hse_url=$(jq -r '."url"' $site_packages/howso/howso-engine/version.json)
-          if [[ $(cat $site_packages/howso/howso-engine/version.json | jq '. | has("build_date")') == true ]]; then
+          if [[ $(cat $site_packages/howso/howso-engine/version.json | jq '. | has("build_date")') == true && $(cat $site_packages/howso/howso-engine/version.json | jq '.build_date') != "\"\"" ]]; then
             # Version is a prerelease (workflow run)
             build_date=$(jq -r '."build_date"' $site_packages/howso/howso-engine/version.json)
             build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
