@@ -131,8 +131,33 @@ jobs:
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
 
+  get-howso-engine-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-engine"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+
+  get-amalgam-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "amalgam"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+
   set-metadata:
-    needs: ['get-amalgam-lang-py-details', 'get-howso-engine-py-details', 'get-howso-validator-py-details', 'get-howso-validator-enterprise-py-details', 'get-howso-synthesizer-py-details']
+    needs:
+      - get-howso-engine-details
+      - get-amalgam-details
+      - get-amalgam-lang-py-details
+      - get-howso-engine-py-details
+      - get-howso-validator-py-details
+      - get-howso-validator-enterprise-py-details
+      - get-howso-synthesizer-py-details
     runs-on: ubuntu-latest
     outputs:
       upstream-details: ${{ steps.set-metadata-details.outputs.upstream-details }}
@@ -144,8 +169,22 @@ jobs:
           # Construct a JSON object with all detail outputs, and then remove the empty ones
           details=$(cat <<EOF
           {
-            "amalgam": ${{ inputs.amalgam-build }},
-            "howso-engine": ${{ inputs.howso-engine-build }},
+            "amalgam": {
+              "run_id": "${{ needs.get-amalgam-details.outputs.run-id }}",
+              "run_type": "${{ needs.get-amalgam-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-amalgam-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-amalgam-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-amalgam-details.outputs.head-sha }}",
+              "url": "${{ needs.get-amalgam-details.outputs.url }}"
+            },
+            "howso-engine": {
+              "run_id": "${{ needs.get-howso-engine-details.outputs.run-id }}",
+              "run_type": "${{ needs.get-howso-engine-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-engine-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-engine-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-engine-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-engine-details.outputs.url }}"
+            },
             "amalgam-lang-py": {
               "run_id": "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}",
               "run_type": "${{ needs.get-amalgam-lang-py-details.outputs.run-type }}",
@@ -192,12 +231,7 @@ jobs:
           filtered_details="{}"
           # Iterate through the full details JSON, and add those with run IDs present to the filtered JSON
           while read -r repo; do
-            if [[ "$repo" == "amalgam" || "$repo" == "howso-engine" ]]; then
-              # Amalgam and howso-engine have details in version.json, so their values are just the build ID
-              run_id=$(echo "$details" | jq --arg repo "$repo" '.[$repo]')
-            else
-              run_id=$(echo "$details" | jq --arg repo "$repo" '.[$repo].run_id')
-            fi
+            run_id=$(echo "$details" | jq --arg repo "$repo" '.[$repo].run_id')
             echo "Checking $repo"
             echo "Discovered run_id $run_id for repo $repo"
             all_details=$(echo "$details" | jq --arg repo "$repo" '.[$repo]')

@@ -77,7 +77,10 @@ jobs:
           ls .dataset_cache
           cp -r .dataset_cache ~/.dataset_cache
 
-
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ inputs.python-version }}
 
       - name: Download dependencies
         env:
@@ -85,9 +88,13 @@ jobs:
         run: |
           while read -r repo; do
             echo "Getting details for $repo"
+            # Remove carriage return character (Windows issue)
+            repo=$(echo $repo | tr -d '\r')
             run_type=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_type"')
             run_id=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_id"')
-            # Amalgam and howso-engine downloads need to be placed in their embedded location
+            #run_type=$(python -c "import json; import os; import sys; print(json.loads(sys.argv[1])[sys.argv[2].replace('\r', '')]['run_type'])" '${{ inputs.upstream-details }}' $repo)
+            #run_id=$(python -c "import json; import os; import sys; print(json.loads(sys.argv[1])[sys.argv[2].replace('\r', '')]['run_id'])" '${{ inputs.upstream-details }}' $repo)
+            echo "run_type: $run_type, run_id: $run_id"
             IFS='-' read -r plat arch <<< "${{ inputs.amalgam-plat-arch }}"
             if [[ "$repo" == "amalgam" ]]; then
               echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
@@ -113,11 +120,6 @@ jobs:
         run: |
           brew install libomp
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ inputs.python-version }}
-
       - name: Download tz data
         if: inputs.platform-pretty == 'Windows'
         shell: pwsh
@@ -127,6 +129,11 @@ jobs:
           } else {
               Write-Host "Download-Tzdata script not found"
           }
+
+      - name: Set locale
+        if: inputs.platform-pretty == 'Windows'
+        run: |
+          export PYTHONUTF8=1
 
       - name: Run unit tests
         run: |

@@ -64,6 +64,12 @@ jobs:
               if [ "${{ inputs.skip-version-json-check }}" = true ]; then
                 echo "No JSON payload given with repo ${{ inputs.repo }}, and skip-version-json-check flag is set. Exiting."
                 exit 0
+              elif [[ "${{ github.event.repository.name }}" == "howso-engine-py" && ${{ inputs.repo }} == "amalgam" ]]; then
+                echo "Current repo is howso-engine-py, version.json will not include Amalgam information. Skipping."
+                exit 0
+              elif [[ "${{ github.event.repository.name }}" == "amalgam-lang-py" && ${{ inputs.repo }} == "howso-engine" ]]; then
+                echo "Current repo is amalgam-lang-py, version.json will not include howso-engine information. Skipping."
+                exit 0
               elif ! [[ -e version.json ]]; then
                 # For the set-metadata workflow to be sufficiently generalized,
                 # the skip-version-json-check flag cannot be set for amalgam or howso-engine,
