@@ -77,6 +77,20 @@ jobs:
           ls .dataset_cache
           cp -r .dataset_cache ~/.dataset_cache
 
+      - name: Download Artifacts
+        # If the current repo is either of these, download the built artifact with embedded amalgam/howso-engine
+        if: github.event.repository.name == 'amalgam-lang-py' || github.event.repository.name == 'howso-engine-py'
+        uses: actions/download-artifact@v3
+        with:
+          path: ./tmp
+
+      - name: Configure artifacts
+        if: github.event.repository.name == 'amalgam-lang-py' || github.event.repository.name == 'howso-engine-py'
+        run: |
+          mkdir -p dist
+          find ./tmp -type f -name '*.whl' -exec mv -t ./dist {} +
+          rm -rf ./tmp
+
       - name: Download dependencies
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
@@ -87,18 +101,8 @@ jobs:
             run_id=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_id"')
             # Amalgam and howso-engine downloads need to be placed in their embedded location
             IFS='-' read -r plat arch <<< "${{ inputs.amalgam-plat-arch }}"
-            if [[ "$repo" == "amalgam" ]]; then
-              echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
-              gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}*" "$run_id"
-              # Extract binaries
-              cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
-              cp lib/* .
-              ls -l
-            elif [[ "$repo" == "howso-engine" ]]; then
-              echo "Downloading and extracting Howso Engine CAMLs..."
-              gh $run_type download -D howso/howso-engine -R "howsoai/$repo" -p "howso-engine-*" "$run_id"
-              # Extract CAMLs
-              cd howso/howso-engine && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+            if [[ "$repo" == "amalgam" || "$repo" == "howso-engine" ]]; then
+              echo "Skipping: artifacts for $repo already embedded in built .whl file that will be installed later"
             else
               gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
               # Needed because release/non-release downloads are different structure
@@ -136,6 +140,16 @@ jobs:
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
           ./bin/build.sh install_deps ${{ inputs.python-version }}
+          # If the current repo is amalgam-lang-py or howso-engine-py, uninstall the editable install and install the build artifact .whl
+          if [[ "${{ github.event.repository.name }}" == "howso-engine-py" ]]; then
+            echo "Installing howso-engine build artifact"
+            pip uninstall howso-engine -y
+            pip install ./dist/*.whl --no-deps
+          elif [[ "${{ github.event.repository.name }}" == "amalgam-lang-py" ]]; then
+            echo "Installing amalgam-lang build artifact"
+            pip uninstall amalgam-lang -y
+            pip install ./dist/*.whl --no-deps
+          fi
           # Install any custom package versions
           declare -a arr=("howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
           for repo in "${arr[@]}"; do

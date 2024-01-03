@@ -9,6 +9,12 @@ on:
       optional-release-tag:
         required: false
         type: string
+      amalgam-build:
+        required: false
+        type: string
+      howso-engine-build:
+        required: false
+        type: string
       amalgam-lang-py-build:
         required: false
         type: string
@@ -45,6 +51,8 @@ jobs:
         # Map inputs to repo names in a JSON object
         builds_json=$(cat <<EOF
         {
+          "amalgam": "${{ inputs.amalgam-build }}",
+          "howso-engine": "${{ inputs.howso-engine-build }}",
           "amalgam-lang-py": "${{ inputs.amalgam-lang-py-build }}",
           "howso-engine-py": "${{ inputs.howso-engine-py-build }}",
           "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
@@ -136,6 +144,8 @@ jobs:
           # Construct a JSON object with all detail outputs, and then remove the empty ones
           details=$(cat <<EOF
           {
+            "amalgam": ${{ inputs.amalgam-build }},
+            "howso-engine": ${{ inputs.howso-engine-build }},
             "amalgam-lang-py": {
               "run_id": "${{ needs.get-amalgam-lang-py-details.outputs.run-id }}",
               "run_type": "${{ needs.get-amalgam-lang-py-details.outputs.run-type }}",
@@ -182,7 +192,12 @@ jobs:
           filtered_details="{}"
           # Iterate through the full details JSON, and add those with run IDs present to the filtered JSON
           while read -r repo; do
-            run_id=$(echo "$details" | jq --arg repo "$repo" '.[$repo].run_id')
+            if [[ "$repo" == "amalgam" || "$repo" == "howso-engine" ]]; then
+              # Amalgam and howso-engine have details in version.json, so their values are just the build ID
+              run_id=$(echo "$details" | jq --arg repo "$repo" '.[$repo]')
+            else
+              run_id=$(echo "$details" | jq --arg repo "$repo" '.[$repo].run_id')
+            fi
             echo "Checking $repo"
             echo "Discovered run_id $run_id for repo $repo"
             all_details=$(echo "$details" | jq --arg repo "$repo" '.[$repo]')
