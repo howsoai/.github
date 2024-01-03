@@ -130,11 +130,6 @@ jobs:
               Write-Host "Download-Tzdata script not found"
           }
 
-      - name: Set locale
-        if: inputs.platform-pretty == 'Windows'
-        run: |
-          export PYTHONUTF8=1
-
       - name: Run unit tests
         run: |
           python -m pip install --upgrade pip
@@ -157,7 +152,11 @@ jobs:
           pip list | grep amalgam
           pip list | grep howso
           echo "Running pytests..."
-          python -m pytest -n ${{ inputs.workers }} -s
+          if [[ "${{ inputs.platform-pretty }}" == "Windows" ]]; then
+            python -X utf8 -m pytest -n ${{ inputs.workers }} -s
+          else
+            python -m pytest -n ${{ inputs.workers }} -s
+          fi
 
       - name: Upload trace files
         if: always()
