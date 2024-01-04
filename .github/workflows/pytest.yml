@@ -36,7 +36,7 @@ on:
         description: The number of Pytest workers to use
         type: string
         required: false
-        default: auto
+        default: '1'
 
 defaults:
   run:
