@@ -12,6 +12,11 @@ on:
         description: A whitespace separated list of Howso package dependencies (e.g., "amalgam-lang-py howso-engine-py").
         type: string
         required: false
+      extras:
+        description: A whitespace-separated list of Python "extras" that should be installed into requirements-<version>-dev.txt
+        type: string
+        required: false
+        default: "dev"
 
 jobs:
   check-requirements:
@@ -121,7 +126,22 @@ jobs:
           else
             # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
             pip-compile --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-${{ matrix.type }}.txt
-            pip-compile --extra dev --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-${{ matrix.type }}-dev.txt
+            # Check to see if any requirements were actually generated; don't commit "empty" requirements files
+            if [[ $(wc -l <requirements-${{ matrix.type }}.txt) -le 7 ]]; then
+              cat requirements-${{ matrix.type }}.txt
+              echo "Removing empty requirements-${{ matrix.type }}.txt as it is empty."
+              rm -f requirements-${{ matrix.type }}.txt
+            fi
+            # Generate dev/other extras requirements
+            extras=""
+            for extra in ${{ inputs.extras }}; do
+              extras+="--extra $extra "
+            done
+            echo "Got extras: $extras"
+            # Only generate dev requirements if there are extras
+            if [[ -n "$extras" ]]; then
+              pip-compile $extras --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-${{ matrix.type }}-dev.txt
+            fi
           fi
           # Add a label to indicate that this version has already been checked
           gh pr edit --add-label "generated requirements [${{ matrix.type }}]" "${{ github.head_ref }}"
@@ -151,7 +171,7 @@ jobs:
           # Do not include Howso software in the 3rd party license file
           this_repo="${{ github.event.repository.name }}"
           this_repo=${this_repo//-py/}  # Remove the "-py" postfix
-          if [[ -n "${{ inputs.upstream-packages }}"]]; then
+          if [[ -n "${{ inputs.upstream-packages }}" ]]; then
             upstream_packages="${{ inputs.upstream-packages }}"
             upstream_packages=${upstream_packages//-py/}  # Remove all "-py" postfixes
             pip uninstall $upstream_packages -y
