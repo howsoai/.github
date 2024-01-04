@@ -6,7 +6,7 @@ on:
       upstream-packages:
         description: A whitespace separated list of Howso package dependencies (e.g., "amalgam-lang-py howso-engine-py").
         type: string
-        required: true
+        required: false
 
 jobs:
 
