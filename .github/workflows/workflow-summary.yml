@@ -113,6 +113,15 @@ jobs:
           sed -i "s|{amalgam-sha}|$amlg_sha|g" ./.github/templates/version_summary.md
           sed -i "s|{amalgam-url}|$amlg_url|g" ./.github/templates/version_summary.md
 
+          # If the current repo is amalgam-lang-py, there are no other dependencies to investigate. 
+          if [[ "${{ github.event.repository.name }}" == "amalgam-lang-py" ]]; then
+            # Remove unecessary quotations from variable substitutions
+            sed -i "s|\"||g" ./.github/templates/version_summary.md
+            # Output filled template file to workflow summary
+            cat ./.github/templates/version_summary.md >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
           # Get howso-engine metadata from version.json
           hse_version=$(jq -r '."version"' $site_packages/howso/howso-engine/version.json)
           hse_sha=$(jq -r '."sha"' $site_packages/howso/howso-engine/version.json)

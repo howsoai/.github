@@ -150,7 +150,8 @@ jobs:
             fi
           done
           pip list | grep amalgam
-          pip list | grep howso
+          # The below may fail if there are no howso-branded packages installed, i.e., in the case of amalgam-lang-py
+          pip list | grep howso || true
           echo "Running pytests..."
           python -m pytest -n ${{ inputs.workers }} -s
 
