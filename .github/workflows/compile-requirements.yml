@@ -3,11 +3,6 @@ name: Reusable WF - Compile Requirements
 on:
   workflow_call:
     inputs:
-      optional-dependencies:
-        description: An optional dependency installation specification for use with a pyproject.toml.
-        type: string
-        required: false
-        default: "[dev]"
       upstream-packages:
         description: A whitespace separated list of Howso package dependencies (e.g., "amalgam-lang-py howso-engine-py").
         type: string
@@ -150,11 +145,11 @@ jobs:
         if: matrix.type == 'licenses'
         id: gen-licenses
         run: |
-          # Skip if this version has already been checked
+          # Skip if this version has already been checked or if there are no 'main' requirements
           labels=$(gh pr view --json labels "${{ github.head_ref }}")
           while IFS= read -r label; do
-            if [[ "$label" == "generated licenses" ]]; then
-              echo "Requirements for Python ${{ matrix.type }} have already been reevaluated. Skipping."
+            if [[ "$label" == "generated licenses" || ! -e "requirements-3.11.txt" ]]; then
+              echo "Licenses for Python ${{ matrix.type }} have already been evaluated, or there are no required 3rd party packages to generate licenses from."
               exit 0
             fi
           done < <(echo "$labels" | jq -r '.labels[] | .name')
@@ -166,11 +161,7 @@ jobs:
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           pip install -r requirements-3.11.txt
-          # Allow this to fail in case the current repository isn't an installable Python package (i.e., recipes)
-          pip install -e ."${{ inputs.optional-dependencies }}" || true
           # Do not include Howso software in the 3rd party license file
-          this_repo="${{ github.event.repository.name }}"
-          this_repo=${this_repo//-py/}  # Remove the "-py" postfix
           if [[ -n "${{ inputs.upstream-packages }}" ]]; then
             upstream_packages="${{ inputs.upstream-packages }}"
             upstream_packages=${upstream_packages//-py/}  # Remove all "-py" postfixes
