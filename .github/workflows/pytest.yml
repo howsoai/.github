@@ -165,4 +165,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
-          path: ./traces/
+          path: ~/traces
