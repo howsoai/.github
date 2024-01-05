@@ -66,14 +66,14 @@ jobs:
 
         # If the provided build is a URL, extract the run ID. Else, if the build exists, add it to the payload JSON.
         while read -r repo; do
-          build=$(echo "$builds_json" | jq --arg repo "$repo" '.[$repo]')
+          build=$(echo "$builds_json" | jq --raw-output --arg repo "$repo" '.[$repo]')
           echo "Discovered build $build for repo $repo"
           if [[ "$build" =~ runs/([0-9]+) ]]; then
             echo "Adding build ID ${BASH_REMATCH[1]} to $repo"
             payload=$(echo "$payload" | jq --arg run_id "${BASH_REMATCH[1]}" --arg repo "$repo" '. + {($repo): ($run_id)}')
-          elif [[ -n "$build" && "$build" != "\"\"" ]]; then
+          elif [[ -n $build && $build != "\"\"" ]]; then
             echo "Adding build ID $build to $repo"
-            payload=$(echo "$payload" | jq --arg build "$build" --arg repo "$repo" '. + {($repo): ($build)}')
+            payload=$(printf "%s" "$payload" | jq --arg build "$build" --arg repo "$repo" '. + {($repo): ($build)}')
           fi
         done < <(echo "$builds_json" | jq -rc 'keys[]')
 
