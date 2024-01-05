@@ -27,7 +27,8 @@ jobs:
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           mkdir -p dist
-          pip download -r requirements-3.11.txt -d ./dist
+          # Allow this to fail in case there are no 'main' requirements
+          pip download -r requirements-3.11.txt -d ./dist || true
           # Remove upstream Howso packages since we don't want these to be scanned
           for pkg in ${{ inputs.upstream-packages }}; do
             fmtd_pkg=${pkg//-py/}  # Remove the "-py" postfix
@@ -44,6 +45,10 @@ jobs:
 
       - name: 🐸 scan
         run: |
+          if [[ ! -e "requirements-3.11.txt" ]]; then
+            echo "Non-dev requirements file is not present"
+            exit 0
+          fi
           # Run a scan, but don't fail if there are problems, and save the exit code/output
           output=$(jf s ./dist/ --licenses --watches github-actions 1>&2) || exit_code=$?
           echo "$output"
