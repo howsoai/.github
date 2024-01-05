@@ -50,6 +50,7 @@ jobs:
               gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
               # Needed because release/non-release downloads are different structure
               cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+              cd ..
             fi
           done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
 
