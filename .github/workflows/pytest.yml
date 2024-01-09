@@ -157,16 +157,19 @@ jobs:
           pip list | grep amalgam
           # The below may fail if there are no howso-branded packages installed, i.e., in the case of amalgam-lang-py
           pip list | grep howso || true
+          env | grep HOWSO_CONFIG
           echo "Running pytests..."
           if [[ "${{ inputs.workers }}" == "off" ]]; then
             python -m pytest -s
           else
             python -m pytest -n ${{ inputs.workers }} -s
           fi
+          ls -l
+          find ~/ -type f -name '*.trace' || true
 
       - name: Upload trace files
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
-          path: ~/traces
+          path: ./traces
