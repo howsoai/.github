@@ -158,7 +158,11 @@ jobs:
           # The below may fail if there are no howso-branded packages installed, i.e., in the case of amalgam-lang-py
           pip list | grep howso || true
           echo "Running pytests..."
-          python -m pytest -n ${{ inputs.workers }} -s
+          if [[ "${{ inputs.workers }}" == "off" ]]; then
+            python -m pytest -s
+          else
+            python -m pytest -n ${{ inputs.workers }} -s
+          fi
 
       - name: Upload trace files
         if: always()
