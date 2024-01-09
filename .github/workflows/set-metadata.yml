@@ -258,7 +258,7 @@ jobs:
       - name: Get previous git tag
         id: previous-tag
         run: |
-          tag=$(git for-each-ref --sort=-creatordate --count 5 --format="%(refname:short)" "refs/tags/" | grep -E "^[0-9]+\.[0-9]+\.[0-9]+" | head -n 1)
+          tag=$(git for-each-ref --sort=-creatordate --count 5 --format="%(refname:short)" "refs/tags/" | grep -E "^[0-9]{1,3}\.[0-9]+\.[0-9]+" | head -n 1)
           echo "Found tag: $tag"
           echo "tag=$(echo $tag)" >> $GITHUB_OUTPUT
 
