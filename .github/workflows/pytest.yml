@@ -159,13 +159,18 @@ jobs:
           pip list | grep howso || true
           env | grep HOWSO_CONFIG
           echo "Running pytests..."
+
+          # If the platform is Windows, specify UTF8 enconding as it may not be on by default
+          if [[ "${{ inputs.platform-pretty}}" == "Windows" ]]; then
+            export PYTHONUTF8=1
+          fi
+
+          # Run unit tests
           if [[ "${{ inputs.workers }}" == "off" ]]; then
             python -m pytest -s
           else
             python -m pytest -n ${{ inputs.workers }} -s
           fi
-          ls -l
-          find ~/ -type f -name '*.trace' || true
 
       - name: Upload trace files
         if: always()
