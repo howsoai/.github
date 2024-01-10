@@ -58,6 +58,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
+          if [[ ! -e "./.github/templates/version_summary.md" ]]; then
+            echo "No workflow summary template found!"
+            exit 0
+          fi
           python -m pip install --upgrade pip
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
@@ -83,8 +87,8 @@ jobs:
               pip install $repo/*.whl --user
             fi
           done
-          pip list | grep amalgam
-          # The below may fail if there are no howso-branded packages installed, i.e., in the case of amalgam-lang-py
+          # The below may fail if there are no Howso packages installed, i.e., in the case of howso-run-py
+          pip list | grep amalgam || true
           pip list | grep howso || true
 
           # Determine site-packages location (to retrieve version.json)
