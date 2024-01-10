@@ -167,9 +167,8 @@ jobs:
             upstream_packages=${upstream_packages//-py/}  # Remove all "-py" postfixes
             pip uninstall $upstream_packages -y
           fi
-          pip uninstall $this_repo -y || true
           pip install pip-licenses
-          pip list | grep howso
+          pip list | grep howso || true
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
           # Add a label to indicate that licenses have already been generated
           gh pr edit --add-label "generated licenses" "${{ github.head_ref }}"
