@@ -38,7 +38,22 @@ on:
 
 jobs:
 
+  validate-event-details:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR Title
+        if: inputs.build-type == 'PR'
+        run: |
+          PR_TITLE=${{ github.event.pull_request.title }}
+          TITLE_REGEX='^[0-9]+: .+$'
+          if ! [[ "$PR_TITLE" =~ $TITLE_REGEX ]]; then
+            echo "PR title does not comply with required format:"
+            echo "<ticket_num>: <title>"
+            exit 1
+          fi
+
   construct-payload:
+    needs: ['validate-event-details']
     runs-on: ubuntu-latest
     outputs:
       payload: ${{ steps.construct-payload.outputs.payload }}
@@ -58,7 +73,7 @@ jobs:
           "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
           "howso-validator-py": "${{ inputs.howso-validator-py-build }}",
           "howso-validator-enterprise-py": "${{ inputs.howso-validator-enterprise-py-build }}"
-        } 
+        }
         EOF
         )
         # Initialize an empty final payload
@@ -163,7 +178,7 @@ jobs:
       upstream-details: ${{ steps.set-metadata-details.outputs.upstream-details }}
     steps:
 
-      - name: set-metadata-details
+      - name: Set Metadata Details
         id: set-metadata-details
         run: |
           # Construct a JSON object with all detail outputs, and then remove the empty ones
@@ -225,7 +240,7 @@ jobs:
               "head_sha": "${{ needs.get-howso-validator-enterprise-py-details.outputs.head-sha }}",
               "url": "${{ needs.get-howso-validator-enterprise-py-details.outputs.url }}"
             }
-          } 
+          }
           EOF
           )
           filtered_details="{}"
@@ -243,7 +258,7 @@ jobs:
           done < <(echo "$details" | jq -rc 'keys[]')
           echo "Filtered upstream details: $filtered_details"
           echo "upstream-details=$(echo "$filtered_details" | jq -c)" >> $GITHUB_OUTPUT
-  
+
   set-version:
     needs: ['set-metadata']
     runs-on: ubuntu-latest
@@ -369,8 +384,8 @@ jobs:
 
           echo "Release tag: $RELEASE_TAG"
           echo "version=$(echo $RELEASE_TAG)" >> $GITHUB_OUTPUT
-    
-      - name: choose-version
+
+      - name: Choose Version
         id: choose-version
         run: |
           if [[ -n "${{ steps.format-version.outputs.version }}" ]]; then
