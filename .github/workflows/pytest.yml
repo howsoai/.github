@@ -124,7 +124,6 @@ jobs:
         if: inputs.platform-pretty == 'MacOS'
         run: |
           brew install libomp
-          brew install sqlite3
 
       - name: Download tz data
         if: inputs.platform-pretty == 'Windows'
