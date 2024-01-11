@@ -35,6 +35,10 @@ jobs:
             fmtd_pkg=${fmtd_pkg//-/_}  # Change "-" to "_"
             echo "Removing $fmtd_pkg from consideration for scanning."
             rm -f ./dist/$fmtd_pkg*
+            # If howso-engine-py is an upstream package, make sure howso-openapi-client is also removed
+            if [[ "$pkg" == "howso-engine-py" ]]; then
+              rm -f ./dist/howso_openapi_client*
+            fi
           done
 
       - uses: jfrog/setup-jfrog-cli@v3
