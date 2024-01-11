@@ -54,6 +54,6 @@ jobs:
           echo "$output"
           echo "Exit code: $exit_code"
           # Check if the command failed and raise a warning if so
-          if [ "$exit_code" != "0" ]; then
+          if [ "$exit_code" == "3" ]; then
             echo "::warning title=Security and/or license violations found!::Please view the output of the JFrog xray scanner job."
           fi
