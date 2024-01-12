@@ -44,13 +44,14 @@ jobs:
       - name: Validate PR Title
         if: inputs.build-type == 'PR'
         run: |
-          PR_TITLE=${{ github.event.pull_request.title }}
+          PR_TITLE="${{ github.event.pull_request.title }}"
           TITLE_REGEX='^[0-9]+: .+$'
           if ! [[ "$PR_TITLE" =~ $TITLE_REGEX ]]; then
-            echo "PR title does not comply with required format:"
+            echo "❌ - PR title does not comply with required format:"
             echo "<ticket_num>: <title>"
             exit 1
           fi
+          echo "✔ - PR title is formatted correctly"
 
   construct-payload:
     needs: ['validate-event-details']
