@@ -40,13 +40,19 @@ jobs:
 
   validate-event-details:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Validate PR Title
         if: inputs.build-type == 'PR'
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_NUMBER="${{ github.event.number }}"
+          PR_TITLE=$(gh pr view $PR_NUMBER --json 'title' | jq -r '.title' )
+          echo "Found PR title: $PR_TITLE"
           TITLE_REGEX='^[0-9]+: .+$'
-          if ! [[ "$PR_TITLE" =~ $TITLE_REGEX ]]; then
+          if ! [[ $PR_TITLE =~ $TITLE_REGEX ]]; then
             echo "❌ - PR title does not comply with required format:"
             echo "<ticket_num>: <title>"
             exit 1
