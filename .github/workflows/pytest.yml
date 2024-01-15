@@ -129,8 +129,8 @@ jobs:
         if: inputs.platform-pretty == 'Windows'
         shell: pwsh
         run: |
-          if (Test-Path "./build/powershell/Download-Tzdata.ps1") {
-            & "./build/powershell/Download-Tzdata.ps1"
+          if (Test-Path "./config/powershell/Download-Tzdata.ps1") {
+            & "./config/powershell/Download-Tzdata.ps1"
           } else {
               Write-Host "Download-Tzdata script not found"
           }
