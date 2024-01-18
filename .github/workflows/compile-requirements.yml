@@ -98,14 +98,17 @@ jobs:
         if: matrix.type != 'licenses'
         id: compile-requirements
         run: |
-          # Skip if this version has already been checked
-          labels=$(gh pr view --json labels "${{ github.head_ref }}")
-          while IFS= read -r label; do
-            if [[ "$label" == "generated requirements [${{ matrix.type }}]" ]]; then
-              echo "Requirements for Python ${{ matrix.type }} have already been reevaluated. Skipping."
-              exit 0
-            fi
-          done < <(echo "$labels" | jq -r '.labels[] | .name')
+          # Only check labels on PR events
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            labels=$(gh pr view --json labels "${{ github.head_ref }}")
+            # Skip if this version has already been checked
+            while IFS= read -r label; do
+              if [[ "$label" == "generated requirements [${{ matrix.type }}]" ]]; then
+                echo "Requirements for Python ${{ matrix.type }} have already been reevaluated. Skipping."
+                exit 0
+              fi
+            done < <(echo "$labels" | jq -r '.labels[] | .name')
+          fi
           # Pull latest changes
           git pull
           # Set extra index URL
@@ -145,14 +148,17 @@ jobs:
         if: matrix.type == 'licenses'
         id: gen-licenses
         run: |
-          # Skip if this version has already been checked or if there are no 'main' requirements
-          labels=$(gh pr view --json labels "${{ github.head_ref }}")
-          while IFS= read -r label; do
-            if [[ "$label" == "generated licenses" || ! -e "requirements-3.11.txt" ]]; then
-              echo "Licenses for Python ${{ matrix.type }} have already been evaluated, or there are no required 3rd party packages to generate licenses from."
-              exit 0
-            fi
-          done < <(echo "$labels" | jq -r '.labels[] | .name')
+          # Only check labels on PR events
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # Skip if this version has already been checked or if there are no 'main' requirements
+            labels=$(gh pr view --json labels "${{ github.head_ref }}")
+            while IFS= read -r label; do
+              if [[ "$label" == "generated licenses" || ! -e "requirements-3.11.txt" ]]; then
+                echo "Licenses for Python ${{ matrix.type }} have already been evaluated, or there are no required 3rd party packages to generate licenses from."
+                exit 0
+              fi
+            done < <(echo "$labels" | jq -r '.labels[] | .name')
+          fi
           # Pull latest changes
           git pull
           rm -f ./LICENSE-3RD-PARTY.txt
