@@ -50,7 +50,7 @@ jobs:
           # Check for changes in myfile.txt on the current branch compared to main branch
           git fetch
           git status
-          changes=$(git diff "origin/main" --name-only -- "$req_file")
+          changes=$(git diff "origin/${{ github.event.repository.default_branch }}" --name-only -- "$req_file")
 
           if [ -n "$changes" ]; then
               echo "Changes found in $req_file on branch ${{ github.head_ref }}."
