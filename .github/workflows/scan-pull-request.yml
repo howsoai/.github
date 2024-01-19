@@ -12,16 +12,43 @@ jobs:
 
   scan-pull-request:
     runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.check-requirements.outputs.changes }}
     steps:
 
       - uses: actions/checkout@v4
 
+      - name: Check for requirements changes
+        id: check-requirements
+        run: |
+          # Determine which type of requirements/setup file exists in this repo
+          if [ -e "pyproject.toml" ]; then
+            echo "Found pyproject.toml"
+            req_file="pyproject.toml"
+          elif [ -e "requirements.in" ]; then
+            echo "Found requirements.in"
+            req_file="requirements.in"
+          fi
+          # Check for changes in requirements files on the current branch compared to the default branch
+          git fetch
+          git status
+          changes=$(git diff "origin/${{ github.event.repository.default_branch }}" --name-only -- "$req_file")
+
+          if [ -n "$changes" ]; then
+              echo "Changes found in $req_file on branch ${{ github.head_ref }}."
+          else
+              echo "No changes to $req_file detected on ${{ github.head_ref }}."
+          fi
+          echo "changes=$(echo $changes)" >> $GITHUB_OUTPUT
+
       - name: Set up Python
+        if: steps.check-requirements.outputs.changes != ''
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
       - name: Download Artifacts
+        if: steps.check-requirements.outputs.changes != ''
         run: |
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
@@ -42,12 +69,14 @@ jobs:
           done
 
       - uses: jfrog/setup-jfrog-cli@v3
+        if: steps.check-requirements.outputs.changes != ''
         env:
           JF_URL: ${{ secrets.JFROG_URL }}
           JF_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
           JF_ALLOWED_LICENSES: "Apache-1.0, Apache-1.1, Apache-2.0, Artistic-1.0, Artistic-1.0-Perl, Artistic-2.0, BSD, BSD 2-Clause, BSD 3-Clause, BSD-2-Clause, BSD-3-Clause, MIT, MPL-2.0"
 
       - name: 🐸 scan
+        if: steps.check-requirements.outputs.changes != ''
         run: |
           if [[ ! -e "requirements-3.11.txt" ]]; then
             echo "Non-dev requirements file is not present"

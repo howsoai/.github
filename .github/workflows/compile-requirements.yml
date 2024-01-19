@@ -48,7 +48,7 @@ jobs:
             echo "::warning file=setup.py::Please update to a pyproject.toml"
           fi
 
-          # Check for changes in myfile.txt on the current branch compared to main branch
+          # Check for changes in the requirements files on the current branch compared to default branch
           git fetch
           git status
           changes=$(git diff "origin/${{ github.event.repository.default_branch }}" --name-only -- "$req_file")
