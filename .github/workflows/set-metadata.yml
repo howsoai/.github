@@ -48,6 +48,10 @@ jobs:
       - name: Validate PR Title
         if: inputs.build-type == 'PR'
         run: |
+          if [[ "${{ github.head_ref }}" =~ "rerun-recipes" ]]; then
+            echo "PR title checks disabled on automated recipe re-run"
+            exit 0
+          fi
           PR_NUMBER="${{ github.event.number }}"
           PR_TITLE=$(gh pr view $PR_NUMBER --json 'title' | jq -r '.title' )
           echo "Found PR title: $PR_TITLE"

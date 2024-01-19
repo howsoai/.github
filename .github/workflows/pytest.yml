@@ -37,6 +37,10 @@ on:
         type: string
         required: false
         default: '1'
+      enable-utf8:
+        description: Whether to enable the PYTHONUTF8 flag
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -162,7 +166,7 @@ jobs:
           echo "Running pytests..."
 
           # If the platform is Windows, specify UTF8 enconding as it may not be on by default
-          if [[ "${{ inputs.platform-pretty}}" == "Windows" ]]; then
+          if [[ ${{ inputs.enable-utf8}} == true ]]; then
             export PYTHONUTF8=1
           fi
 
