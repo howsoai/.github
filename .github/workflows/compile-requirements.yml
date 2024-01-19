@@ -175,11 +175,9 @@ jobs:
             upstream_packages="${{ inputs.upstream-packages }}"
             upstream_packages=${upstream_packages//-py/}  # Remove all "-py" postfixes
             pip uninstall $upstream_packages -y
-            # If howso-engine-py is an upstream package, make sure howso-openapi-client is also removed
-            if [[ "$pkg" == "howso-engine-py" ]]; then
-              pip uninstall howso-openapi-client -y
-            fi
           fi
+          # Also uninstall howso-visuals and howso-openapi-client if they exist (will not fail if they don't)
+          pip uninstall howso-visuals howso-openapi-client -y
           pip install pip-licenses
           pip list | grep howso || true
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
