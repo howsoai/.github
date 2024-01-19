@@ -21,6 +21,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     outputs:
       dev_req_file: ${{ steps.detect-changes.outputs.dev-req-file }}
+      changes: ${{ steps.detect-changes.outputs.changes }}
     steps:
 
       - uses: actions/checkout@v4
@@ -60,10 +61,12 @@ jobs:
 
           echo "dev-req-file: $dev_req_file"
 
+          echo "changes=$(echo $changes)" >> $GITHUB_OUTPUT
           echo "dev-req-file=$(echo $dev_req_file)" >> $GITHUB_OUTPUT
 
   compile-requirements:
     needs: ['check-requirements']
+    if: needs.check-requirements.outputs.changes != ''
     runs-on: ubuntu-latest
     permissions: write-all
     outputs:
@@ -199,7 +202,8 @@ jobs:
           fi
   
   update-labels:
-    needs: ['compile-requirements']
+    needs: ['check-requirements', 'compile-requirements']
+    if: needs.check-requirements.outputs.changes != ''
     runs-on: ubuntu-latest
     permissions: write-all
     env:
