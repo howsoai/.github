@@ -1,0 +1,5 @@
+{
+    "name": "Howso Requirements Regeneration Template",
+    "description": "Starter workflow for Howso Python requirements.txt file regeneration.",
+    "iconName": "octicon download"
+}

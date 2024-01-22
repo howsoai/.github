@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       upstream-packages:
-        description: A whitespace separated list of Howso package dependencies (e.g., "amalgam-lang-py howso-engine-py").
+        description: A whitespace separated list of Howso package dependencies [DEPRECATED].
         type: string
         required: false
       extras:
@@ -183,15 +183,8 @@ jobs:
           fi
           pip install -r requirements-3.11.txt
           # Do not include Howso software in the 3rd party license file
-          if [[ -n "${{ inputs.upstream-packages }}" ]]; then
-            upstream_packages="${{ inputs.upstream-packages }}"
-            upstream_packages=${upstream_packages//-py/}  # Remove all "-py" postfixes
-            pip uninstall $upstream_packages -y
-          fi
-          # Also uninstall howso-visuals and howso-openapi-client if they exist (will not fail if they don't)
-          pip uninstall howso-visuals howso-openapi-client -y
+          pip uninstall amlgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
           pip install pip-licenses
-          pip list | grep howso || true
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
           # Add a label to indicate that licenses have already been generated
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then

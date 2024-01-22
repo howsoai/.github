@@ -1,0 +1,92 @@
+name: Rebuild Requirements Files
+run-name: "Rebuild Requirements"
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticket-number:
+        description: "A ticket number to use for the creation of the branch and PR."
+        type: string
+        required: false
+      create-pr:
+        description: "Create a PR against the default branch?"
+        required: true
+        type: boolean
+        default: true
+      extras:
+        description: A whitespace-separated list of Python "extras" that should be installed into requirements-<version>-dev.txt (e.g., "dev scikit")
+        type: string
+        required: false
+        default: "dev"
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  create-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      branch: ${{ steps.create-branch.outputs.branch }}
+
+    steps:
+
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+        ref: ${{ github.head_ref }}
+    
+    - name: Create new branch
+      id: create-branch
+      run: |
+        git config user.name "howso-automation"
+        git config user.email "support@howso.com"
+        NOW=$(date +'%Y-%m-%dT%Hh%Mm%Ss')
+        if [[ -n "${{ inputs.ticket-number }}" ]]; then
+          BRANCH="${{ inputs.ticket-number }}-gen-requirements-$NOW"
+        else
+          BRANCH="gen-requirements-$NOW"
+        fi
+        git checkout -b $BRANCH
+        git push --set-upstream origin $BRANCH
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+  gen-requirements:
+    needs: ['create-branch']
+    uses: "howsoai/.github/.github/workflows/compile-requirements.yml@main"
+    secrets: inherit
+    with:
+      branch: ${{ needs.create-branch.outputs.branch }}
+      force-rebuild: true
+      extras: ${{ inputs.extras }}
+
+  create-pr:
+    needs: ['create-branch', 'gen-requirements']
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+        GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+    steps:
+
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+        ref: ${{ needs.create-branch.outputs.branch }}
+
+    - name: Create PR
+      run: |
+        if [[ -n "${{ inputs.ticket-number }}" ]]; then
+          TITLE="${{ inputs.ticket-number }}: Automated requirements generation"
+        else
+          TITLE="Automated requirements generation"
+        fi
+        gh pr create --base ${{ github.event.repository.default_branch }} --title "$TITLE" --body "Automated PR with generated requirements.txt files."
