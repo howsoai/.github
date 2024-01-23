@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       upstream-packages:
-        description: A whitespace separated list of Howso package dependencies (e.g., "amalgam-lang-py howso-engine-py").
+        description: A whitespace separated list of Howso package dependencies [DEPRECATED].
         type: string
         required: false
 
@@ -57,16 +57,7 @@ jobs:
           # Allow this to fail in case there are no 'main' requirements
           pip download -r requirements-3.11.txt -d ./dist || true
           # Remove upstream Howso packages since we don't want these to be scanned
-          for pkg in ${{ inputs.upstream-packages }}; do
-            fmtd_pkg=${pkg//-py/}  # Remove the "-py" postfix
-            fmtd_pkg=${fmtd_pkg//-/_}  # Change "-" to "_"
-            echo "Removing $fmtd_pkg from consideration for scanning."
-            rm -f ./dist/$fmtd_pkg*
-            # If howso-engine-py is an upstream package, make sure howso-openapi-client is also removed
-            if [[ "$pkg" == "howso-engine-py" ]]; then
-              rm -f ./dist/howso_openapi_client*
-            fi
-          done
+          pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
 
       - uses: jfrog/setup-jfrog-cli@v3
         if: steps.check-requirements.outputs.changes != ''
