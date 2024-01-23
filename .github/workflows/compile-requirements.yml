@@ -183,7 +183,7 @@ jobs:
           fi
           pip install -r requirements-3.11.txt
           # Do not include Howso software in the 3rd party license file
-          pip uninstall amlgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
+          pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
           pip install pip-licenses
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
           # Add a label to indicate that licenses have already been generated
