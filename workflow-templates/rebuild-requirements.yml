@@ -29,64 +29,67 @@ concurrency:
 
 jobs:
 
-  create-branch:
+  gen-branch-name:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
-      branch: ${{ steps.create-branch.outputs.branch }}
+      branch: ${{ steps.gen-branch-name.outputs.branch }}
 
     steps:
-
-    - uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
-        ref: ${{ github.head_ref }}
     
-    - name: Create new branch
-      id: create-branch
+    - name: Generate branch name
+      id: gen-branch-name
       run: |
-        git config user.name "howso-automation"
-        git config user.email "support@howso.com"
         NOW=$(date +'%Y-%m-%dT%Hh%Mm%Ss')
         if [[ -n "${{ inputs.ticket-number }}" ]]; then
           BRANCH="${{ inputs.ticket-number }}-gen-requirements-$NOW"
         else
           BRANCH="gen-requirements-$NOW"
         fi
-        git checkout -b $BRANCH
-        git push --set-upstream origin $BRANCH
         echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
+  create-branch:
+    needs: ['gen-branch-name']
+    uses: "howsoai/.github/.github/workflows/create-branch.yml@main"
+    secrets: inherit
+    with:
+      branch: ${{ needs.gen-branch-name.outputs.branch }}
+
   gen-requirements:
-    needs: ['create-branch']
+    needs: ['create-branch', 'gen-branch-name']
     uses: "howsoai/.github/.github/workflows/compile-requirements.yml@main"
     secrets: inherit
     with:
-      branch: ${{ needs.create-branch.outputs.branch }}
+      branch: ${{ needs.gen-branch-name.outputs.branch }}
       force-rebuild: true
       extras: ${{ inputs.extras }}
 
-  create-pr:
-    needs: ['create-branch', 'gen-requirements']
+  gen-pr-title:
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
+    outputs:
+      title: ${{ steps.gen-pr-title.outputs.title }}
     env:
-        GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
     steps:
 
-    - uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
-        ref: ${{ needs.create-branch.outputs.branch }}
-
-    - name: Create PR
+    - name: Generate PR title
+      id: gen-pr-title
       run: |
         if [[ -n "${{ inputs.ticket-number }}" ]]; then
           TITLE="${{ inputs.ticket-number }}: Automated requirements generation"
         else
           TITLE="Automated requirements generation"
         fi
-        gh pr create --base ${{ github.event.repository.default_branch }} --title "$TITLE" --body "Automated PR with generated requirements.txt files."
+        echo "title=$TITLE" >> $GITHUB_OUTPUT
+  
+  create-pr:
+    needs: ['gen-branch-name', 'create-branch', 'gen-pr-title', 'gen-requirements']
+    uses: "howsoai/.github/.github/workflows/create-pr.yml@main"
+    with:
+      branch: ${{ needs.gen-branch-name.outputs.branch }}
+      title: ${{ needs.gen-pr-title.outputs.title }}
+      body: "Automated PR with generated requirements.txt files."
