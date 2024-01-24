@@ -63,8 +63,13 @@ jobs:
           git status
           changes=$(git diff "origin/${{ github.event.repository.default_branch }}" --name-only -- "$req_file")
 
+          if [[ ! -n "$changes" && ! -e "requirements-3.11.txt" ]]; then
+            echo "Requirements.txt does not exist!"
+            changes="no requirements.txt"
+          fi
+
           if [ -n "$changes" ]; then
-              echo "Changes found in $req_file on branch ${{ inputs.branch }}."
+            echo "Changes found in $req_file on branch ${{ inputs.branch }}."
           else
               echo "No changes to $req_file detected on ${{ inputs.branch }}."
           fi
