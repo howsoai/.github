@@ -155,7 +155,12 @@ jobs:
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
           fi
-          pip install -r requirements-3.11.txt
+          if [[ -e "requirements-3.11.txt" ]]; then
+            pip install -r requirements-3.11.txt
+          else
+            echo "No main requirements.txt file found."
+            exit 0
+          fi
           # Do not include Howso software in the 3rd party license file
           pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
           pip install pip-licenses
