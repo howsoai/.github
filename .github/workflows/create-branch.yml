@@ -27,6 +27,10 @@ jobs:
     - name: Create new branch
       id: create-branch
       run: |
+        if [[ "${{ inputs.branch }}" == "${{ github.ref_name }}" ]]; then
+          echo "Branch input is the ref_name. Skipping."
+          exit 0
+        fi
         git config user.name "howso-automation"
         git config user.email "support@howso.com"
         echo "Creating branch ${{ inputs.branch }}"
