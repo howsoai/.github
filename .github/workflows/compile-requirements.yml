@@ -120,14 +120,15 @@ jobs:
               export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
             fi
             # Install pip-tools and run pip-compile
-            pip install -U pip pip-tools
+            pip install -U pip-tools
             if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
               # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
-              pip-compile requirements.in --resolver=backtracking --upgrade requirements.in --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version.txt
-              pip-compile requirements-dev.in --resolver=backtracking --upgrade requirements.in --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt
+              cat requirements.in
+              pip-compile requirements.in --resolver=backtracking --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version.txt -v
+              pip-compile requirements-dev.in requirements.in --resolver=backtracking --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
             else
               # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
-              pip-compile --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version.txt
+              pip-compile --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version.txt -v
               # Check to see if any requirements were actually generated; don't commit "empty" requirements files
               if [[ $(wc -l <requirements-$version.txt) -le 7 ]]; then
                 cat requirements-$version.txt
@@ -142,7 +143,7 @@ jobs:
               echo "Got extras: $extras"
               # Only generate dev requirements if there are extras
               if [[ -n "$extras" ]]; then
-                pip-compile $extras --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt
+                pip-compile $extras --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
               fi
             fi
           done
@@ -156,7 +157,7 @@ jobs:
             export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
           fi
           if [[ -e "requirements-3.11.txt" ]]; then
-            pip install -r requirements-3.11.txt
+            pip install -r requirements-3.11.txt --no-deps
           else
             echo "No main requirements.txt file found."
             exit 0
