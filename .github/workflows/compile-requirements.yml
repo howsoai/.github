@@ -170,6 +170,7 @@ jobs:
       - name: Commit changes
         id: commit-changes
         run: |
+          git pull
           if [ -n "$(git status --porcelain)" ]; then
             echo "Changes to pip requirements or third-party licenses detected. Making a new commit..."
             git config user.name "howso-automation"
