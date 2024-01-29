@@ -135,15 +135,17 @@ jobs:
                 echo "Removing empty requirements-$version.txt as it is empty."
                 rm -f requirements-$version.txt
               fi
-              # Generate dev/other extras requirements
-              extras=""
-              for extra in ${{ inputs.extras }}; do
-                extras+="--extra $extra "
-              done
-              echo "Got extras: $extras"
-              # Only generate dev requirements if there are extras
-              if [[ -n "$extras" ]]; then
-                pip-compile $extras --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
+              # Generate dev/other extras requirements (pyproject.toml only)
+              if [[ -e "pyproject.toml" ]]; then
+                extras=""
+                for extra in ${{ inputs.extras }}; do
+                  extras+="--extra $extra "
+                done
+                echo "Got extras: $extras"
+                # Only generate dev requirements if there are extras
+                if [[ -n "$extras" ]]; then
+                  pip-compile $extras --resolver=backtracking --upgrade --generate-hashes --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
+                fi
               fi
             fi
           done
