@@ -68,10 +68,15 @@ jobs:
             changes="no requirements.txt"
           fi
 
+          if [[ "${{ github.actor }}" == "dmglennie-diveplane" ]]; then
+            echo "Requirements were generated in the last commit!"
+            unset changes
+          fi
+
           if [ -n "$changes" ]; then
             echo "Changes found in $req_file on branch ${{ inputs.branch }}."
           else
-              echo "No changes to $req_file detected on ${{ inputs.branch }}."
+            echo "No changes to $req_file detected on ${{ inputs.branch }}."
           fi
 
           echo "dev-req-file: $dev_req_file"
