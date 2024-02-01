@@ -41,6 +41,10 @@ on:
         description: Whether to enable the PYTHONUTF8 flag
         type: boolean
         default: false
+      setup-docker:
+        description: Whether to log in to the JFrog dpbuild docker registry
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -80,6 +84,11 @@ jobs:
           tar xzvf dataset_cache.tar.gz
           ls .dataset_cache
           cp -r .dataset_cache ~/.dataset_cache
+
+      - name: Set up Docker
+        if: inputs.setup-docker == true
+        run: |
+          echo "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" | docker login dpbuild-docker-edge.jfrog.io --username "vsts-build@diveplane.com" --password-stdin
 
       - name: Set up Python
         uses: actions/setup-python@v5
