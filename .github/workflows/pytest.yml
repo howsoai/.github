@@ -150,7 +150,8 @@ jobs:
 
       - name: Run unit tests
         run: |
-          python -m pip install --upgrade pip
+          # Temporarily commenting this out until Windows install issue with v24.0 gets resolved
+          # python -m pip install --upgrade pip
           export TEST_OPTIONS=USE_HOWSO_CONFIG
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
