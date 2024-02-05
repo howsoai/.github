@@ -7,6 +7,11 @@ on:
         description: The name of the new branch to create
         type: string
         required: true
+      repo:
+        description: The repository to create a branch on
+        type: string
+        required: false
+        default: ${{ github.repository }}
 
 jobs:
 
@@ -23,6 +28,7 @@ jobs:
       with:
         token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         ref: ${{ github.head_ref }}
+        repository: ${{ inputs.repo }}
     
     - name: Create new branch
       id: create-branch
