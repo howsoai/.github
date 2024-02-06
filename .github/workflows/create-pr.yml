@@ -25,6 +25,11 @@ on:
         type: string
         required: false
         default: ${{ github.repository }}
+      token:
+        description: The token to use with the GitHub CLI
+        type: string
+        required: false
+        default: "${{ github.token }}"
 
 jobs:
 
@@ -34,7 +39,7 @@ jobs:
       contents: write
       pull-requests: write
     env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
     steps:
 
     - uses: actions/checkout@v4
@@ -49,7 +54,7 @@ jobs:
           echo "Dry run with --base=${{ github.event.repository.default_branch }}, --title=${{ inputs.title }}, --body==${{ inputs.body }}"
           exit 0
         fi
-        if [[ -n "$repo" ]]; then
+        if [[ -n "${{ inputs.repo }}" ]]; then
           gh pr create --repo "${{ inputs.repo }}" --base "main" --title "${{ inputs.title }}" --body "${{ inputs.body }}"
         else
           gh pr create --base ${{ github.event.repository.default_branch }} --title "${{ inputs.title }}" --body "${{ inputs.body }}"
