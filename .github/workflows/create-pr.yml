@@ -20,6 +20,11 @@ on:
         type: string
         required: false
         default: "Automted PR"
+      repo:
+        description: The repository to create a PR on
+        type: string
+        required: false
+        default: ${{ github.repository }}
 
 jobs:
 
@@ -36,6 +41,7 @@ jobs:
       with:
         token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         ref: ${{ inputs.branch }}
+        repository: ${{ inputs.repo }}
 
     - name: Create PR
       run: |
