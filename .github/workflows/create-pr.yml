@@ -25,11 +25,6 @@ on:
         type: string
         required: false
         default: ${{ github.repository }}
-      token:
-        description: The token to use with the GitHub CLI
-        type: string
-        required: false
-        default: "${{ github.token }}"
 
 jobs:
 
@@ -39,7 +34,7 @@ jobs:
       contents: write
       pull-requests: write
     env:
-        GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
     steps:
 
     - uses: actions/checkout@v4
