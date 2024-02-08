@@ -24,7 +24,6 @@ on:
         description: The repository to create a PR on
         type: string
         required: false
-        default: ${{ github.repository }}
 
 jobs:
 
@@ -49,7 +48,7 @@ jobs:
           echo "Dry run with --base=${{ github.event.repository.default_branch }}, --title=${{ inputs.title }}, --body==${{ inputs.body }}"
           exit 0
         fi
-        if [[ -n "${{ inputs.repo }}" ]]; then
+        if [[ -n ${{ inputs.repo }} ]]; then
           export GH_TOKEN=${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
           gh pr create --repo "${{ inputs.repo }}" --base "main" --title "${{ inputs.title }}" --body "${{ inputs.body }}"
         else

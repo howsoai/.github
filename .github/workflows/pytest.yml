@@ -150,8 +150,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          # Temporarily commenting this out until Windows install issue with v24.0 gets resolved
-          # python -m pip install --upgrade pip
+          python -m pip install --upgrade pip
           export TEST_OPTIONS=USE_HOWSO_CONFIG
           if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
@@ -159,6 +158,11 @@ jobs:
           if [[ -n "${{ inputs.config-fp }}" ]]; then
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
+          ## If running on Windows, use the full path (19201)
+          #if [[ "${{ inputs.platform-pretty }}" == "Windows" ]]; then
+          #  sed -i "s|pip|C:\hostedtoolcache\windows\Python\${{ inputs.python-version }}.*\x64\python.exe|g" ./bin/build.sh
+          #fi
+          # Install requirements.txt
           ./bin/build.sh install_deps ${{ inputs.python-version }}
           # Install any custom package versions
           declare -a arr=("howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
