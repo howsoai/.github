@@ -21,6 +21,11 @@ on:
       override:
         required: false
         type: string
+      check-cache:
+        description: Disable caching mechanism
+        required: false
+        type: boolean
+        default: true
     outputs:
       run-id:
         value: ${{ jobs.run-external-workflow.outputs.run-id }}
@@ -46,7 +51,7 @@ jobs:
       
       - name: Check cached workflow
         id: check-cached
-        if: inputs.override == ''
+        if: inputs.override == '' && inputs.no-cache == false
         run: |
           run=$(gh api \
             -H "Accept: application/vnd.github+json" \
