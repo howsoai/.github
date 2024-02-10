@@ -48,7 +48,7 @@ jobs:
       - name: Validate PR Title
         if: inputs.build-type == 'PR'
         run: |
-          if [[ "${{ github.head_ref }}" =~ "rerun-recipes" || "${{ github.head_ref }}" =~ "gen-requirements" ]]; then
+          if [[ "${{ github.head_ref }}" =~ "rerun-recipes" || "${{ github.head_ref }}" =~ "gen-requirements" || "${{ github.head_ref }}" =~ "update-devcontainers" ]]; then
             echo "PR title checks disabled on automated recipe or requirements re-run"
             exit 0
           fi
