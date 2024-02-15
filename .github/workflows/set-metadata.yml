@@ -380,7 +380,8 @@ jobs:
 
           # Check if valid semver:
           regex='^([0-9]+\.){2}(\*|[0-9]+)(-.*)?$'
-          if [[ ! "$RELEASE_TAG" =~ $regex ]]; then
+          # Release tag can be semver OR "version-" prefix (for platform)
+          if [[ ! "$RELEASE_TAG" =~ $regex && ! "$RELEASE_TAG" =~ "version-" ]]; then
             echo "❌ - Release tag is not a valid semver: $RELEASE_TAG"
             exit 1
           fi
