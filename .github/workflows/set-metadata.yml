@@ -30,6 +30,11 @@ on:
       howso-validator-enterprise-py-build:
         required: false
         type: string
+      allow-version-prefix:
+        required: false
+        type: boolean
+        description: Whether to search for previous release tags that include the "version-" prefix
+        default: false
     outputs:
       upstream-details:
         value: ${{ jobs.set-metadata.outputs.upstream-details }}
@@ -284,7 +289,12 @@ jobs:
       - name: Get previous git tag
         id: previous-tag
         run: |
-          tag=$(git for-each-ref --sort=-creatordate --count 5 --format="%(refname:short)" "refs/tags/" | grep -E "^[0-9]{1,3}\.[0-9]+\.[0-9]+" | head -n 1)
+          if [[ ${{ inputs.allow-version-prefix }} == true ]]; then
+            prefixed_tag=$(git for-each-ref --sort=-creatordate --count 5 --format="%(refname:short)" "refs/tags/" | grep -E "^[a-z]*-*[0-9]{1,3}\.[0-9]+\.[0-9]+" | head -n 1)
+            tag=${prefixed_tag/#version-}
+          else
+            tag=$(git for-each-ref --sort=-creatordate --count 5 --format="%(refname:short)" "refs/tags/" | grep -E "^[0-9]{1,3}\.[0-9]+\.[0-9]+" | head -n 1)
+          fi
           echo "Found tag: $tag"
           echo "tag=$(echo $tag)" >> $GITHUB_OUTPUT
 
@@ -347,7 +357,11 @@ jobs:
             IS_MAJOR_BUMP=false
             IS_MINOR_BUMP=false
             echo "Checking commit titles since last tag: '${{ steps.previous-tag.outputs.tag }}'..."
-            COMMITS=$(git log --pretty=format:%s ${{ steps.previous-tag.outputs.tag }}..@)
+            if [[ ${{ inputs.allow-version-prefix }} == true ]]; then
+              COMMITS=$(git log --pretty=format:%s version-${{ steps.previous-tag.outputs.tag }}..@)
+            else
+              COMMITS=$(git log --pretty=format:%s ${{ steps.previous-tag.outputs.tag }}..@)
+            fi
             while read commit
             do
               if [[ $commit == *"MAJOR"* ]]; then
@@ -380,8 +394,7 @@ jobs:
 
           # Check if valid semver:
           regex='^([0-9]+\.){2}(\*|[0-9]+)(-.*)?$'
-          # Release tag can be semver OR "version-" prefix (for platform)
-          if [[ ! "$RELEASE_TAG" =~ $regex && ! "$RELEASE_TAG" =~ "version-" ]]; then
+          if [[ ! "$RELEASE_TAG" =~ $regex ]]; then
             echo "❌ - Release tag is not a valid semver: $RELEASE_TAG"
             exit 1
           fi
