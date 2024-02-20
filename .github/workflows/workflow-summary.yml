@@ -23,7 +23,7 @@ jobs:
       - name: Download Artifacts
         # If the current repo is either of these, download the built artifact with embedded amalgam/howso-engine
         if: github.event.repository.name == 'amalgam-lang-py' || github.event.repository.name == 'howso-engine-py'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./tmp
 
