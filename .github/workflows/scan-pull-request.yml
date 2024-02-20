@@ -77,11 +77,5 @@ jobs:
             echo "Non-dev requirements file is not present"
             exit 0
           fi
-          # Run a scan, but don't fail if there are problems, and save the exit code/output
-          output=$(jf s ./dist/ --licenses --watches pipeline-distributed 1>&2) || exit_code=$?
-          echo "$output"
-          echo "Exit code: $exit_code"
-          # Check if the command failed and raise a warning if so
-          if [ "$exit_code" == "3" ]; then
-            echo "::warning title=Security and/or license violations found!::Please view the output of the JFrog xray scanner job."
-          fi
+          # Run the xray scan
+          jf s ./dist/ --licenses --watches pipeline-distributed
