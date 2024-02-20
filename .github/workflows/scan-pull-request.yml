@@ -21,13 +21,12 @@ jobs:
       - name: Check for requirements changes
         id: check-requirements
         run: |
-          # Determine which type of requirements/setup file exists in this repo
-          if [ -e "pyproject.toml" ]; then
-            echo "Found pyproject.toml"
-            req_file="pyproject.toml"
-          elif [ -e "requirements.in" ]; then
-            echo "Found requirements.in"
-            req_file="requirements.in"
+          # Only run a scan if there have been changes to the main requirements.txt
+          if [[ -e "requirements-3.11.txt" ]]; then
+            req_file="requirements-3.11.txt"
+          else
+            echo "No requirements.txt found!"
+            exit 0
           fi
           # Check for changes in requirements files on the current branch compared to the default branch
           git fetch
