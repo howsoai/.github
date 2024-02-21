@@ -62,8 +62,6 @@ jobs:
           for PKG in "${arr[@]}"; do
             rm -f ./dist/$PKG*
           done
-          # Remove py==1.11.0 due to a known security vulnerability (TODO: remove this when a new version is released)
-          rm -f ./dist/py-1.11.0-py2.py3-none-any.whl
           ls ./dist
 
       - uses: jfrog/setup-jfrog-cli@v4
