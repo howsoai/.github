@@ -6,6 +6,11 @@ on:
       upstream-details:
         type: string
         required: true
+      validate-amlg-versions:
+        type: boolean
+        description: Validate whether the embedded Amalgam versions in howso-engine and amalgam-lang-py are compatible (same major version)
+        required: false
+        default: false
 
 jobs:
 
@@ -125,6 +130,17 @@ jobs:
             # Output filled template file to workflow summary
             cat ./.github/templates/version_summary.md >> $GITHUB_STEP_SUMMARY
             exit 0
+          fi
+
+          # Optionally validate Amalgam versions
+          if [[ ${{ inputs.validate-amlg-versions }} == true ]]; then
+            engine_amlg_version=$(jq -r ".dependencies.amalgam" $site_packages/howso/howso-engine/version.json)
+            echo "Validating howso-engine Amalgam version $engine_amlg_version against amalgam-lang-py with Amalgam version $amlg_version"
+            # Check major versions only
+            if [[ "${engine_amlg_version:0:1}" != "${amlg_version:0:1}" ]]; then
+              echo "Critical failure: howso-engine Amalgam version ${engine_amlg_version} is incompatible with amalgam-lang-py embedded version ${amlg_version}"
+              exit 1
+            fi
           fi
 
           # Get howso-engine metadata from version.json
