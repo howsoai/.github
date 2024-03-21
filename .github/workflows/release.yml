@@ -1,0 +1,121 @@
+name: Reusable WF - Create Release
+
+on:
+  workflow_call:
+    inputs:
+      publish_location:
+        description: 'The publish destination ("PyPi" or "Artifactory")'
+        type: string
+        required: false
+        default: 'Artifactory'
+      version:
+        description: The version of the release to create
+        type: string
+        required: true
+      publish_name:
+        description: The name of the published package (e.g., "howso-engine")
+        type: string
+        required: true
+      rt_repo:
+        description: The Artifactory package repository to publish to
+        type: string
+        required: false
+        default: 'pypi-edge'
+      rt_user:
+        description: The Artifactory user to authenticate with
+        type: string
+        required: false
+        default: 'vsts-build@diveplane.com'
+      python_artifacts:
+        description: Whether this project will publish a .whl
+        type: boolean
+        required: false
+        default: True
+
+jobs:
+
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    environment:
+      name: ${{ inputs.publish_location }}
+    env:
+      GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+    steps:
+
+      - name: Get previous release hash
+        id: get-hashes
+        run: |
+          # Query API with GH CLI
+          latest_release_hash=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/howsoai/${{ github.event.repository.name }}/releases/latest \
+            | jq -r '.target_commitish')
+          
+          echo "latest-release-hash=$latest_release_hash" >> $GITHUB_OUTPUT
+          echo "Generating release notes from $latest_release_hash to ${{ github.sha }}"
+
+      - name: Download Artifacts
+        if: inputs.python_artifacts == true
+        uses: actions/download-artifact@v4
+        with:
+          path: ./tmp
+
+      - name: Configure environment
+        if: inputs.python_artifacts == true
+        run: |
+          mkdir -p dist
+          find ./tmp -type f -name '*.whl' -exec cp -t ./dist {} +
+          find ./tmp -type f -name '*.tar.gz' -exec cp -t ./dist {} +
+          ls ./dist
+
+      - name: Set up Python
+        if: inputs.publish_location == 'PyPi' || inputs.publish_location == 'pypi'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Publish [PyPi]
+        if: inputs.publish_location == 'PyPi' || inputs.publish_location == 'pypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - uses: jfrog/setup-jfrog-cli@v3
+        if: inputs.publish_location == 'Artifactory' || inputs.publish_location == 'artifactory'
+        env:
+          JF_URL: ${{ secrets.ARTIFACTORY_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}
+  
+      - name: Publish to Artifactory
+        if: inputs.publish_location == 'Artifactory' || inputs.publish_location == 'artifactory'
+        run: |
+          cd dist
+          jf rt u "./*" "${{ inputs.rt_repo }}/${{ inputs.publish_name }}/${{ inputs.version }}/" --build-name "release-${{ inputs.publish_name }}" --build-number "${{ inputs.version }}" --module "${{ inputs.publish_name }}" --user "${{ inputs.rt_user }}" --url "${{ secrets.ARTIFACTORY_URL }}" --password "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}"
+
+      - name: Build Changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        id: build-changelog
+        with:
+          owner: 'howsoai'
+          repo: ${{ github.event.repository.name }}
+          fromTag: ${{ steps.get-hashes.outputs.latest-release-hash }}
+          toTag: ${{ github.sha }}
+          configurationJson: |
+            {
+              "template": "## What's Changed\n #{{UNCATEGORIZED}}\n\n **Full changelog**: #{{RELEASE_DIFF}}",
+              "pr_template": "- #{{TITLE}} by @#{{AUTHOR}} in [##{{NUMBER}}](#{{URL}})\n"
+            }
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ inputs.version }}
+          commit: ${{ github.sha }}
+          name: ${{ github.event.repository.name }} ${{ inputs.version }}
+          artifactErrorsFailBuild: true
+          body: ${{ steps.build-changelog.outputs.changelog }}
+          makeLatest: legacy
+          artifacts: "./dist/*.tar.gz,./dist/*.whl"
+          artifactContentType: application/gzip
