@@ -73,15 +73,15 @@ jobs:
           find ./tmp -type f -name '*.tar.gz' -exec cp -t ./dist {} +
           ls ./dist
 
-      - name: Set up Python
-        if: inputs.publish_location == 'PyPi' || inputs.publish_location == 'pypi'
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    # - name: Set up Python
+    #   if: inputs.publish_location == 'PyPi' || inputs.publish_location == 'pypi'
+    #   uses: actions/setup-python@v5
+    #   with:
+    #     python-version: "3.11"
 
-      - name: Publish [PyPi]
-        if: inputs.publish_location == 'PyPi' || inputs.publish_location == 'pypi'
-        uses: pypa/gh-action-pypi-publish@release/v1
+    # - name: Publish [PyPi]
+    #   if: inputs.publish_location == 'PyPi' || inputs.publish_location == 'pypi'
+    #   uses: pypa/gh-action-pypi-publish@release/v1
 
       - uses: jfrog/setup-jfrog-cli@v3
         if: inputs.publish_location == 'Artifactory' || inputs.publish_location == 'artifactory'
