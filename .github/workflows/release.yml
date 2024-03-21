@@ -26,11 +26,16 @@ on:
         type: string
         required: false
         default: 'vsts-build@diveplane.com'
-      python_artifacts:
-        description: Whether this project will publish a .whl
+      unpack_artifacts:
+        description: Whether to unpack downloaded artifacts into a ./dist folder
         type: boolean
         required: false
         default: True
+      artifacts:
+        description: Comma-separated artifact patterns
+        type: string
+        required: false
+        default: './dist/*.whl,./dist/*.tar.gz'
 
 jobs:
 
@@ -60,13 +65,13 @@ jobs:
           echo "Generating release notes from $latest_release_hash to ${{ github.sha }}"
 
       - name: Download Artifacts
-        if: inputs.python_artifacts == true
+        if: inputs.artifacts != ''
         uses: actions/download-artifact@v4
         with:
           path: ./tmp
 
       - name: Configure environment
-        if: inputs.python_artifacts == true
+        if: inputs.artifacts != '' && inputs.unpack_artifacts == true
         run: |
           mkdir -p dist
           find ./tmp -type f -name '*.whl' -exec cp -t ./dist {} +
@@ -118,5 +123,5 @@ jobs:
           artifactErrorsFailBuild: true
           body: ${{ steps.build-changelog.outputs.changelog }}
           makeLatest: legacy
-          artifacts: "./dist/*.tar.gz,./dist/*.whl"
+          artifacts: ${{ inputs.artifacts }}
           artifactContentType: application/gzip
