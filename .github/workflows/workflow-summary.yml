@@ -112,13 +112,13 @@ jobs:
             build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
             amlg_notes=$(jq -r '.version."amalgam_display_title"' $site_packages/amalgam/lib/version.json)
             amlg_notes=$(python -c "notes = '$amlg_notes'.split(' -')[0] if 'PR Build' in '$amlg_notes' else '$amlg_notes'; print(notes)")
-            amlg_version_full=$(echo "$amlg_version ($build_date)")
+            amlg_version=$(echo "$amlg_version ($build_date)")
           else
             # Version is a release
             amlg_notes=$(echo "Release version embedded in the installed \`amalgam-lang-py\`")
           fi
           # Substitute info into version_summary.md
-          sed -i "s|{amalgam-version}|$amlg_version_full|g" ./.github/templates/version_summary.md
+          sed -i "s|{amalgam-version}|$amlg_version|g" ./.github/templates/version_summary.md
           sed -i "s|{amalgam-notes}|$amlg_notes|g" ./.github/templates/version_summary.md
           sed -i "s|{amalgam-sha}|$amlg_sha|g" ./.github/templates/version_summary.md
           sed -i "s|{amalgam-url}|$amlg_url|g" ./.github/templates/version_summary.md
