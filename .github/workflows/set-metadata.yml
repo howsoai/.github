@@ -304,8 +304,14 @@ jobs:
         with:
           version: ${{ steps.previous-tag.outputs.tag }}
 
+      - name: Set custom release version
+        if: inputs.build-type == 'release-custom'
+        id: set-custom-release-version
+        run: |
+          echo "version=$(echo ${{ steps.next-semvers.outputs.patch }}-alpha+PR.${{ github.run_attempt }}.${{ github.run_number }})" >> $GITHUB_OUTPUT
+
       - name: Set PR version
-        if: inputs.build-type == 'PR'
+        if: inputs.build-type == 'PR' || inputs.build-type == 'release-custom'
         id: set-pr-version
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
@@ -419,6 +425,9 @@ jobs:
           elif [[ -n "${{ steps.set-release-version.outputs.version }}" ]]; then
             echo "Setting release version"
             echo "version=${{ steps.set-release-version.outputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ -n "${{ steps.set-custom-release-version.outputs.version }}" ]]; then
+            echo "Setting custom release version"
+            echo "version=${{ steps.set-custom-release-version.outputs.version }}" >> $GITHUB_OUTPUT
           else
             echo "Version could not be determined"
             echo "version=0.0.0" >> $GITHUB_OUTPUT
