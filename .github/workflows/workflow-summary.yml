@@ -137,7 +137,9 @@ jobs:
             engine_amlg_version=$(jq -r ".dependencies.amalgam" $site_packages/howso/howso-engine/version.json)
             echo "Validating howso-engine Amalgam version $engine_amlg_version against amalgam-lang-py with Amalgam version $amlg_version"
             # Check major versions only
-            if [[ "${engine_amlg_version}" != "${amlg_version}" ]]; then
+            major_ver_1=$(echo "$engine_amlg_version" | cut -d'.' -f1)
+            major_ver_2=$(echo "$amlg_version" | cut -d'.' -f1)
+            if [[ "${major_ver_1}" != "${major_ver_2}" ]]; then
               echo "Critical failure: howso-engine Amalgam version ${engine_amlg_version} is incompatible with amalgam-lang-py embedded version ${amlg_version}"
               exit 1
             fi
