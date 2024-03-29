@@ -24,6 +24,12 @@ on:
         required: false
         type: string
       pmlb-cache:
+        description: Downloads and extracts the PMLB dataset cache from the GitHub cache if true
+        required: false
+        type: boolean
+        default: false
+      move-data:
+        description: Whether to move data from the 'howso' subdirectory of the PMLB cache into a repo-level 'data' folder
         required: false
         type: boolean
         default: false
@@ -84,6 +90,14 @@ jobs:
           tar xzvf dataset_cache.tar.gz
           ls .dataset_cache
           cp -r .dataset_cache ~/.dataset_cache
+
+      - name: Move Howso Data to repo folder
+        if: inputs.move-data == true
+        run: |
+          pwd
+          ls -a
+          mkdir -p data && cp -r .dataset_cache/howso/ ./data/
+          ls -a ./data
 
       - name: Set up Docker
         if: inputs.setup-docker == true
