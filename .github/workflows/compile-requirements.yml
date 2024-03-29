@@ -121,8 +121,8 @@ jobs:
             python -m pip install --upgrade pip
             bash -l
             # Set extra index URL
-            if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
-              export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
+            if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+              export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
             fi
             # Install pip-tools and run pip-compile
             pip install -U pip-tools
@@ -160,8 +160,8 @@ jobs:
         run: |
           rm -f ./LICENSE-3RD-PARTY.txt
           # Set extra index URL
-          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
-            export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
+          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
           fi
           if [[ -e "requirements-3.11.txt" ]]; then
             pip install -r requirements-3.11.txt --no-deps
