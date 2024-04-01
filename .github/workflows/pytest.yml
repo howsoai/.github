@@ -162,6 +162,11 @@ jobs:
               Write-Host "Download-Tzdata script not found"
           }
 
+      - name: Remove Pip cache
+        if: inputs.platform-pretty == 'Windows'
+        shell: bash
+        run: rm -rf ~/AppData/Local/pip/cache
+
       - name: Run unit tests
         run: |
           python -m pip install --upgrade pip
