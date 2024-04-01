@@ -122,7 +122,7 @@ jobs:
             bash -l
             # Set extra index URL
             if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
-              export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
+              export PIP_EXTRA_INDEX_URL="https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
             fi
             # Install pip-tools and run pip-compile
             pip install -U pip-tools
