@@ -92,13 +92,13 @@ jobs:
         if: inputs.publish_location == 'Artifactory' || inputs.publish_location == 'artifactory'
         env:
           JF_URL: ${{ secrets.ARTIFACTORY_URL }}
-          JF_ACCESS_TOKEN: ${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}
+          JF_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
   
       - name: Publish to Artifactory
         if: inputs.publish_location == 'Artifactory' || inputs.publish_location == 'artifactory'
         run: |
           cd dist
-          jf rt u "./*" "${{ inputs.rt_repo }}/${{ inputs.publish_name }}/${{ inputs.version }}/" --build-name "release-${{ inputs.publish_name }}" --build-number "${{ inputs.version }}" --module "${{ inputs.publish_name }}" --user "${{ inputs.rt_user }}" --url "${{ secrets.ARTIFACTORY_URL }}" --password "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}"
+          jf rt u "./*" "${{ inputs.rt_repo }}/${{ inputs.publish_name }}/${{ inputs.version }}/" --build-name "release-${{ inputs.publish_name }}" --build-number "${{ inputs.version }}" --module "${{ inputs.publish_name }}" --user "${{ inputs.rt_user }}" --url "${{ secrets.ARTIFACTORY_URL }}" --password "${{ secrets.JFROG_ACCESS_TOKEN }}"
 
       - name: Build Changelog
         uses: mikepenz/release-changelog-builder-action@v4

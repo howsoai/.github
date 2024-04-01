@@ -102,7 +102,7 @@ jobs:
       - name: Set up Docker
         if: inputs.setup-docker == true
         run: |
-          echo "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" | docker login dpbuild-docker-edge.jfrog.io --username "vsts-build@diveplane.com" --password-stdin
+          echo "${{ secrets.JFROG_ACCESS_TOKEN }}" | docker login dpbuild-docker-edge.jfrog.io --username "vsts-build@diveplane.com" --password-stdin
 
       - name: Set up Python
         uses: actions/setup-python@v5

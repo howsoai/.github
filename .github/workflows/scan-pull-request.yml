@@ -49,8 +49,8 @@ jobs:
       - name: Download Artifacts
         if: steps.check-requirements.outputs.changes != ''
         run: |
-          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
-            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           mkdir -p dist
           # Allow this to fail in case there are no 'main' requirements
