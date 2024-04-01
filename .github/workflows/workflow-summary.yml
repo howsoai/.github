@@ -68,8 +68,8 @@ jobs:
             exit 0
           fi
           python -m pip install --upgrade pip
-          if [[ -n "${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}" ]]; then
-            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.ARTIFACTORY_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           ./bin/build.sh install_deps 3.11
           # If the current repo is amalgam-lang-py or howso-engine-py, uninstall the editable install and install the build artifact .whl
