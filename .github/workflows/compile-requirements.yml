@@ -118,14 +118,19 @@ jobs:
             # Install Python
             pyenv install $version.1
             pyenv local $version.1
+            python --version
+            pip list
             python -m pip install --upgrade pip
+            pip list
             bash -l
+            pip list
             # Set extra index URL
             if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
               export PIP_EXTRA_INDEX_URL="https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
             fi
             # Install pip-tools and run pip-compile
             pip install -U pip-tools
+            pip list
             if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
               # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
               cat requirements.in
@@ -153,12 +158,14 @@ jobs:
                 fi
               fi
             fi
+            pip list
           done
 
       - name: Generate third-party licenses
         id: gen-licenses
         run: |
           rm -f ./LICENSE-3RD-PARTY.txt
+          pip list
           # Set extra index URL
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
@@ -169,9 +176,12 @@ jobs:
             echo "No main requirements.txt file found."
             exit 0
           fi
+          pip list
           # Do not include Howso software in the 3rd party license file
           pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
+          pip list
           pip install pip-licenses
+          pip list
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
 
       - name: Commit changes
