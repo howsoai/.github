@@ -164,7 +164,11 @@ jobs:
       - name: Generate third-party licenses
         id: gen-licenses
         run: |
+          which python
+          python --version
           rm -f ./LICENSE-3RD-PARTY.txt
+          pip list
+          eval "$(pyenv init -)"
           pip list
           # Set extra index URL
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
