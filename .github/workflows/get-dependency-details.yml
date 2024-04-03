@@ -49,7 +49,11 @@ jobs:
       head-sha: ${{ steps.dependency.outputs.head-sha }}
       url: ${{ steps.dependency.outputs.url }}
     steps:
+
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+          #repository: ${{ inputs.owner }}/${{ inputs.repo }} # TODO: differentiate 'repo' from 'repo-to-checkout'
 
       - name: Get dependency details
         id: dependency
@@ -87,6 +91,38 @@ jobs:
           fi
 
           echo "Searching for ${{ inputs.repo }} build id '$ID'..."
+          # If ID is a platform release tag, find the corresponding GitHub release
+          if [[ "$ID" =~ "release-" ]]; then
+            git fetch --tags
+            commit_hash=$(git rev-list -n 1 "$ID")
+            echo "$ID references a platform release with commit $commit_hash"
+
+            # List all releases using GitHub CLI, getting just the tag names
+            tags=$(gh release list --limit 15 --json tagName | jq -r '.[].tagName')
+
+            # Loop through each tag to find a release with a matching commit hash
+            matchedTag=""
+            for tag in $tags; do
+                # Fetch detailed information about the release, including the commit hash
+                commit=$(gh release view $tag --json targetCommitish | jq -r '.targetCommitish')
+
+                if [[ "$commit" == "$commit_hash" ]]; then
+                    matchedTag=$tag
+                    break
+                fi
+            done
+            
+            # If a matching tag is found, update $ID
+            if [[ ! -z "$matchedTag" ]]; then
+                ID=$matchedTag
+                echo "Matching GitHub release found. ID updated to: $ID"
+            else
+                echo "No matching GitHub release found for $ID."
+                exit 1
+            fi
+          fi
+
+          # Query the GitHub CLI for build artifacts
           if gh release view --repo ${{ inputs.owner }}/${{ inputs.repo }} "$ID" > /dev/null 2>&1; then
               # Release
               echo "Found release build"
