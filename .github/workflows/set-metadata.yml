@@ -35,6 +35,11 @@ on:
         type: boolean
         description: Whether to search for previous release tags that include the "version-" prefix
         default: false
+      skip-version-check:
+        required: false
+        type: boolean
+        description: Whether to skip creating a new (pre)release version
+        default: false
     outputs:
       upstream-details:
         value: ${{ jobs.set-metadata.outputs.upstream-details }}
@@ -277,6 +282,7 @@ jobs:
 
   set-version:
     needs: ['set-metadata']
+    if: inputs.skip-version-check == false
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.choose-version.outputs.version }}
