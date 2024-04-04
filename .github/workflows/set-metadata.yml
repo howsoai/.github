@@ -40,6 +40,11 @@ on:
         type: boolean
         description: Whether to skip creating a new (pre)release version
         default: false
+      checkout-repos:
+        description: Whether to checkout each repo when getting dependency details (e.g., for use with the Git client)
+        required: false
+        type: boolean
+        default: false
     outputs:
       upstream-details:
         value: ${{ jobs.set-metadata.outputs.upstream-details }}
@@ -126,6 +131,7 @@ jobs:
       repo: "howso-synthesizer-py"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-validator-enterprise-py-details:
     needs: ['construct-payload']
@@ -136,6 +142,7 @@ jobs:
       repo: "howso-validator-enterprise-py"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-validator-py-details:
     needs: ['construct-payload']
@@ -146,6 +153,7 @@ jobs:
       repo: "howso-validator-py"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-engine-py-details:
     needs: ['construct-payload']
@@ -156,6 +164,7 @@ jobs:
       repo: "howso-engine-py"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
 
   get-amalgam-lang-py-details:
     needs: ['construct-payload']
@@ -166,6 +175,7 @@ jobs:
       repo: "amalgam-lang-py"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-engine-details:
     needs: ['construct-payload']
@@ -175,6 +185,7 @@ jobs:
       owner: "howsoai"
       repo: "howso-engine"
       payload: "${{ needs.construct-payload.outputs.payload }}"
+      checkout-repo: ${{ inputs.checkout-repos }}
 
   get-amalgam-details:
     needs: ['construct-payload']
@@ -184,6 +195,7 @@ jobs:
       owner: "howsoai"
       repo: "amalgam"
       payload: "${{ needs.construct-payload.outputs.payload }}"
+      checkout-repo: ${{ inputs.checkout-repos }}
 
   set-metadata:
     needs:

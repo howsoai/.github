@@ -10,6 +10,11 @@ on:
       repo:
         required: true
         type: string
+      checkout-repo:
+        description: Whether to checkout the above repo
+        required: false
+        type: boolean
+        default: false
       payload:
         required: false
         type: string
@@ -51,9 +56,15 @@ jobs:
     steps:
 
       - uses: actions/checkout@v4
+        if: inputs.checkout-repo == true
         with:
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
-          #repository: ${{ inputs.owner }}/${{ inputs.repo }} # TODO: differentiate 'repo' from 'repo-to-checkout'
+          repository: ${{ inputs.owner }}/${{ inputs.repo }}
+
+      - uses: actions/checkout@v4
+        if: inputs.checkout-repo == false
+        with:
+          token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
 
       - name: Get dependency details
         id: dependency
