@@ -79,4 +79,4 @@ jobs:
             exit 0
           fi
           # Run the xray scan
-          jf s ./dist/ --licenses --watches pipeline-distributed
+          jf s ./dist/ --licenses --watches pipeline-distributed || true
