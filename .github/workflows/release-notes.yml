@@ -1,0 +1,48 @@
+name: Reusable WF - Create Release Notes
+
+on:
+  workflow_call:
+    outputs:
+      changelog:
+        value: ${{ jobs.create-release-notes.outputs.changelog }}
+
+jobs:
+
+  create-release-notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+    outputs:
+      changelog: ${{ steps.build-changelog.outputs.changelog }}
+    steps:
+
+      - name: Get previous release hash
+        id: get-hashes
+        run: |
+          # Query API with GH CLI
+          latest_release_hash=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/howsoai/${{ github.event.repository.name }}/releases/latest \
+            | jq -r '.target_commitish')
+          
+          echo "latest-release-hash=$latest_release_hash" >> $GITHUB_OUTPUT
+          echo "Generating release notes from $latest_release_hash to ${{ github.sha }}"
+
+      - name: Build Changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        id: build-changelog
+        with:
+          owner: 'howsoai'
+          repo: ${{ github.event.repository.name }}
+          fromTag: ${{ steps.get-hashes.outputs.latest-release-hash }}
+          toTag: ${{ github.sha }}
+          configurationJson: |
+            {
+              "template": "## What's Changed\n #{{UNCATEGORIZED}}\n\n **Full changelog**: #{{RELEASE_DIFF}}",
+              "pr_template": "- #{{TITLE}} by @#{{AUTHOR}} in [##{{NUMBER}}](#{{URL}})\n"
+            }
