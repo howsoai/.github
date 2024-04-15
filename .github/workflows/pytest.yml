@@ -51,6 +51,11 @@ on:
         description: Whether to log in to the JFrog dpbuild docker registry
         type: boolean
         default: false
+      targets:
+        description: Multiple pytest targets to run as a matrix strategy (JSON)
+        type: string
+        required: false
+        default: '["."]'
 
 defaults:
   run:
@@ -59,8 +64,11 @@ defaults:
 jobs:
 
   test:
-    name: Pytest (${{ inputs.python-version }}, ${{inputs.platform-pretty}}, ${{ inputs.config-pretty }})
+    name: Pytest ${{ matrix.target }} (${{ inputs.python-version }}, ${{inputs.platform-pretty}}, ${{ inputs.config-pretty }})
     runs-on: ${{ inputs.platform }}
+    strategy:
+      matrix:
+        target: ${{ fromJson(inputs.targets) }}
     steps:
 
       - uses: actions/checkout@v4
@@ -205,9 +213,9 @@ jobs:
 
           # Run unit tests
           if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest -s
+            python -m pytest -s ${{ matrix.target }}
           else
-            python -m pytest -n ${{ inputs.workers }} -s
+            python -m pytest -n ${{ inputs.workers }} -s ${{ matrix.target }}
           fi
 
       - name: Upload trace files
