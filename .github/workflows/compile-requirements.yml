@@ -116,7 +116,7 @@ jobs:
           command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
           eval "$(pyenv init -)"
           # Compile requirements
-          declare -a arr=("3.8" "3.9" "3.10" "3.11")
+          declare -a arr=("3.9" "3.10" "3.11" "3.12")
           for version in "${arr[@]}"; do
             echo "Installing Python $version"
             # Install Python
