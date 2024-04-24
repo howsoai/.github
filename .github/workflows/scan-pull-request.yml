@@ -62,6 +62,8 @@ jobs:
           for PKG in "${arr[@]}"; do
             rm -f ./dist/$PKG*
           done
+          # Remove matplotlib, too, as its license is not properly detected
+          rm -f ./dist/matplotlib*
           ls ./dist
 
       - uses: jfrog/setup-jfrog-cli@v4
@@ -79,4 +81,4 @@ jobs:
             exit 0
           fi
           # Run the xray scan
-          jf s ./dist/ --licenses --watches pipeline-distributed || true
+          jf s ./dist/ --licenses --watches pipeline-distributed
