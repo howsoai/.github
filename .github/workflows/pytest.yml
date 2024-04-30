@@ -56,6 +56,10 @@ on:
         type: string
         required: false
         default: '["."]'
+      test-results-upload:
+        description: Whether to upload JUnit test results XML
+        type: boolean
+        default: true
 
 defaults:
   run:
@@ -213,9 +217,9 @@ jobs:
 
           # Run unit tests
           if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest -s ${{ matrix.target }}
+            python -m pytest -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           else
-            python -m pytest -n ${{ inputs.workers }} -s ${{ matrix.target }}
+            python -m pytest -n ${{ inputs.workers }} -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           fi
 
       - name: Upload trace files
@@ -224,3 +228,32 @@ jobs:
         with:
           name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
           path: ./traces
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "test-results-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
+          path: junit/test-results.xml
+
+  upload-test-results:
+    needs: ['test']
+    if: inputs.test-results-upload == true
+    permissions:
+      contents: read
+      issues: read
+      checks: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./tmp
+          name: "test-results-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
+
+      - name: Upload test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: './tmp/test-results.xml'
