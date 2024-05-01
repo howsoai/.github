@@ -42,8 +42,13 @@ on:
         default: false
       checkout-repos:
         description: Whether to checkout each repo when getting dependency details (e.g., for use with the Git client)
-        required: false
         type: boolean
+        required: false
+        default: false
+      build-and-embed:
+        description: If a build for Amalgam and/or Engine are provided, automatically build a corresponding amalgam-lang-py and howso-engine-py to be used in the client workflow.
+        type: boolean
+        required: false
         default: false
     outputs:
       upstream-details:
@@ -208,8 +213,10 @@ jobs:
       - get-howso-synthesizer-py-details
     runs-on: ubuntu-latest
     outputs:
-      upstream-details: ${{ steps.set-metadata-details.outputs.upstream-details }}
+      upstream-details: ${{ steps.output-upstream-details.outputs.final-upstream-details }}
     steps:
+
+      - uses: actions/checkout@v4
 
       - name: Set Metadata Details
         id: set-metadata-details
@@ -283,7 +290,8 @@ jobs:
             echo "Checking $repo"
             echo "Discovered run_id $run_id for repo $repo"
             all_details=$(echo "$details" | jq --arg repo "$repo" '.[$repo]')
-            if [[ -n "$run_id" && "$run_id" != "\"\"" ]]; then
+            # Skip the repo if the run ID isn't present, or if an amalgam or howso-engine build are set and will be overwritten later anyways
+            if [[ -n "$run_id" && "$run_id" != "\"\"" ]] && ! { [[ "$repo" == "amalgam-lang-py" && -n "${{ inputs.amalgam-build }}" ]] || [[ "$repo" == "howso-engine-py" && -n "${{ inputs.howso-engine-build }}" ]]; }; then
               filtered_details=$(echo "$filtered_details" | jq --arg repo "$repo" --argjson all_details "$all_details" '. + { ($repo): $all_details }')
             else
               echo "Skipping (empty run_id)"
@@ -291,6 +299,53 @@ jobs:
           done < <(echo "$details" | jq -rc 'keys[]')
           echo "Filtered upstream details: $filtered_details"
           echo "upstream-details=$(echo "$filtered_details" | jq -c)" >> $GITHUB_OUTPUT
+
+      - name: Config external run
+        id: config-external
+        if: inputs.build-and-embed
+        run: |
+          while read -r repo; do
+            echo "Getting details for $repo"
+            # Remove carriage return character (Windows issue)
+            repo=$(echo $repo | tr -d '\r')
+            run_type=$(printf "%s" '${{ steps.set-metadata-details.outputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_type"')
+            run_id=$(printf "%s" '${{ steps.set-metadata-details.outputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_id"')
+            if [[ "$repo" == "amalgam" ]]; then
+              echo "amalgam-run-id=$run_id" >> $GITHUB_OUTPUT
+            elif [[ "$repo" == "howso-engine" ]]; then
+              echo "howso-engine-run-id=$run_id" >> $GITHUB_OUTPUT
+            fi
+          done < <(printf "%s" '${{ steps.set-metadata-details.outputs.upstream-details }}' | jq -rc 'keys[]')
+
+      - name: Build custom amalgam-lang-py
+        id: build-amalgam-lang-py
+        if: inputs.build-and-embed && inputs.amalgam-build != ''
+        uses: "./.github/workflows/run-external.yml"
+        with:
+          repo: amalgam-lang-py
+          workflow-name: build.yml
+          payload: '{"amalgam-build": "${{ steps.config-external.outputs.amalgam-run-id }}"}'
+
+      - name: Build custom howso-engine-py
+        id: build-howso-engine-py
+        if: inputs.build-and-embed && inputs.howso-engine-build != ''
+        uses: "./.github/workflows/run-external.yml"
+        with:
+          repo: howso-engine-py
+          workflow-name: build.yml
+          payload: '{"amalgam-build": "${{ steps.config-external.outputs.amalgam-run-id }}", "howso-engine-build": "${{ steps.config-external.outputs.howso-engine-run-id }}"}'
+
+      - name: Output upstream-details
+        id: output-upstream-details
+        run: |
+          final_details=$(printf "%s" '${{ steps.set-metadata-details.outputs.upstream-details }}')
+          if [[ -n "${{ steps.build-amalgam-lang-py.outputs.run-id }}" ]]; then
+            final_details=$(printf "%s" '$final_details' | jq --arg run_id "${{ steps.build-amalgam-lang-py.outputs.run-id }}" --arg repo "amalgam-lang-py" '. + {($repo): ($run_id)}')
+          elif [[ -n "${{ steps.build-howso-engine-py.outputs.run-id }}" ]]; then
+            final_details=$(printf "%s" '$final_details' | jq --arg run_id "${{ steps.build-howso-engine-py.outputs.run-id }}" --arg repo "howso-engine-py" '. + {($repo): ($run_id)}')
+          fi
+          echo "Final upstream details: $final_details"
+          echo "final-upstream-details=$(echo "$final_details" | jq -c)" >> $GITHUB_OUTPUT
 
   set-version:
     needs: ['set-metadata']
