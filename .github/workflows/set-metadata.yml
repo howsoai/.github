@@ -212,6 +212,8 @@ jobs:
       - get-howso-validator-enterprise-py-details
       - get-howso-synthesizer-py-details
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
     outputs:
       upstream-details: ${{ steps.output-upstream-details.outputs.final-upstream-details }}
     steps:
@@ -320,29 +322,93 @@ jobs:
       - name: Build custom amalgam-lang-py
         id: build-amalgam-lang-py
         if: inputs.build-and-embed && inputs.amalgam-build != ''
-        uses: ./.github/workflows/run-external-composite
-        with:
-          repo: amalgam-lang-py
-          workflow-name: build.yml
-          payload: '{"amalgam-build": "${{ steps.config-external.outputs.amalgam-run-id }}"}'
+        run: |
+          payload='{"amalgam-build": "${{ steps.config-external.outputs.amalgam-run-id }}"}'
+          echo "$payload" | gh workflow run build.yml -R howsoai/amalgam-lang-py --json
+          sleep 15
+
+          run_id=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/howsoai/amalgam-lang-py/actions/workflows/build.yml/runs \
+            | jq -r '.workflow_runs[0].id')
+
+          echo "Captured workflow run ID: $run_id"
+
+          status="queued"
+          while [[ "$status" != "completed" ]]; do
+            echo "Workflow run at https://github.com/howsoai/howso-amalgam-lang-py/actions/runs/$run_id has non-complete status '$status'. Going back to sleep..."
+            sleep 15
+            status=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/howsoai/amalgam-lang-py/actions/runs/$run_id \
+              | jq -r '.status')
+          done
+
+          conclusion=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/howsoai/amalgam-lang-py/actions/runs/$run_id \
+            | jq -r '.conclusion')
+
+          if [[ "$conclusion" != "success" ]]; then
+            echo "Critical failure: workflow run $run_id has conclusion '$conclusion'. Exiting."
+            exit 1
+          fi
+
+          echo "Success!"
+          echo "run-id=$run_id" >> $GITHUB_OUTPUT
 
       - name: Build custom howso-engine-py
         id: build-howso-engine-py
         if: inputs.build-and-embed && inputs.howso-engine-build != ''
-        uses: ./.github/workflows/run-external-composite
-        with:
-          repo: howso-engine-py
-          workflow-name: build.yml
-          payload: '{"amalgam-build": "${{ steps.config-external.outputs.amalgam-run-id }}", "howso-engine-build": "${{ steps.config-external.outputs.howso-engine-run-id }}"}'
+        run: |
+          payload='{"amalgam-lang-py-build": "${{ steps.build-amalgam-lang-py.outputs.run-id }}", "howso-engine-build": "${{ steps.config-external.outputs.howso-engine-run-id }}"}'
+          echo "$payload" | gh workflow run build.yml -R howsoai/howso-engine-py --json
+          sleep 15
+
+          run_id=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/howsoai/howso-engine-py/actions/workflows/build.yml/runs \
+            | jq -r '.workflow_runs[0].id')
+
+          echo "Captured workflow run ID: $run_id"
+
+          status="queued"
+          while [[ "$status" != "completed" ]]; do
+            echo "Workflow run at https://github.com/howsoai/howso-engine-py/actions/runs/$run_id has non-complete status '$status'. Going back to sleep..."
+            sleep 15
+            status=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/howsoai/howso-engine-py/actions/runs/$run_id \
+              | jq -r '.status')
+          done
+
+          conclusion=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/howsoai/howso-engine-py/actions/runs/$run_id \
+            | jq -r '.conclusion')
+
+          if [[ "$conclusion" != "success" ]]; then
+            echo "Critical failure: workflow run $run_id has conclusion '$conclusion'. Exiting."
+            exit 1
+          fi
+
+          echo "Success!"
+          echo "run-id=$run_id" >> $GITHUB_OUTPUT
 
       - name: Output upstream-details
         id: output-upstream-details
         run: |
           final_details=$(printf "%s" '${{ steps.set-metadata-details.outputs.upstream-details }}')
           if [[ -n "${{ steps.build-amalgam-lang-py.outputs.run-id }}" ]]; then
-            final_details=$(printf "%s" '$final_details' | jq --arg run_id "${{ steps.build-amalgam-lang-py.outputs.run-id }}" --arg repo "amalgam-lang-py" '. + {($repo): ($run_id)}')
+            final_details=$(echo "$final_details" | jq --arg run_id "${{ steps.build-amalgam-lang-py.outputs.run-id }}" --arg repo "amalgam-lang-py" '. + {($repo): ($run_id)}')
           elif [[ -n "${{ steps.build-howso-engine-py.outputs.run-id }}" ]]; then
-            final_details=$(printf "%s" '$final_details' | jq --arg run_id "${{ steps.build-howso-engine-py.outputs.run-id }}" --arg repo "howso-engine-py" '. + {($repo): ($run_id)}')
+            final_details=$(echo "$final_details" | jq --arg run_id "${{ steps.build-howso-engine-py.outputs.run-id }}" --arg repo "howso-engine-py" '. + {($repo): ($run_id)}')
           fi
           echo "Final upstream details: $final_details"
           echo "final-upstream-details=$(echo "$final_details" | jq -c)" >> $GITHUB_OUTPUT
