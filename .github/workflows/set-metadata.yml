@@ -320,7 +320,7 @@ jobs:
       - name: Build custom amalgam-lang-py
         id: build-amalgam-lang-py
         if: inputs.build-and-embed && inputs.amalgam-build != ''
-        uses: "./.github/workflows/run-external.yml"
+        uses: "howsoai/.github/.github/workflows/run-external-composite@v1"
         with:
           repo: amalgam-lang-py
           workflow-name: build.yml
@@ -329,7 +329,7 @@ jobs:
       - name: Build custom howso-engine-py
         id: build-howso-engine-py
         if: inputs.build-and-embed && inputs.howso-engine-build != ''
-        uses: "./.github/workflows/run-external.yml"
+        uses: "howsoai/.github/.github/workflows/run-external-composite@v1"
         with:
           repo: howso-engine-py
           workflow-name: build.yml
