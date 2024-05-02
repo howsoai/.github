@@ -406,7 +406,17 @@ jobs:
         run: |
           final_details=$(printf "%s" '${{ steps.set-metadata-details.outputs.upstream-details }}')
           if [[ -n "${{ steps.build-amalgam-lang-py.outputs.run-id }}" ]]; then
-            final_details=$(echo "$final_details" | jq --arg run_id "${{ steps.build-amalgam-lang-py.outputs.run-id }}" --arg repo "amalgam-lang-py" '. + {($repo): ($run_id)}')
+            ID=${{ steps.build-amalgam-lang-py.outputs.run-id }}
+            details=$(gh run view --repo howsoai/amalgam-lang-py $ID --json createdAt,displayTitle,headSha,url)
+            build_date=$(echo "$details" | jq '.createdAt')
+            build_title=$(echo "$details" | jq '.displayTitle')
+            head_sha=$(echo "$details" | jq '.headSha')
+            url=$(echo "$details" | jq '.url')
+            build_date=$(echo $build_date | tr -d '"')
+            build_title=$(echo $build_title | tr -d '"')
+            head_sha=$(echo $head_sha | tr -d '"')
+            url=$(echo $url | tr -d '"')
+            final_details=$(echo "$final_details" | jq --arg run_id "$ID" --arg repo "amalgam-lang-py" --arg build_date "$build_date" --arg build_title "$build_title" --arg head_sha "$head_sha" --arg url "$url" '. + {($repo): {"run_type": "run", "run_id": ($run_id), "build_date": ($build_date), "build_title": ($build_title), "head_sha": ($head_sha), "url": ($url)}}')
           elif [[ -n "${{ steps.build-howso-engine-py.outputs.run-id }}" ]]; then
             final_details=$(echo "$final_details" | jq --arg run_id "${{ steps.build-howso-engine-py.outputs.run-id }}" --arg repo "howso-engine-py" '. + {($repo): ($run_id)}')
           fi
