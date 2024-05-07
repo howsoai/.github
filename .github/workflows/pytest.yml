@@ -235,8 +235,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: "test-results-${{ matrix.target }}-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
+          name: "test-results-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
           path: junit/test-results.xml
+          overwrite: true
 
   upload-test-results:
     needs: ['test']
