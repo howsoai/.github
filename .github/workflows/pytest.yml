@@ -189,6 +189,7 @@ jobs:
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           if [[ -n "${{ inputs.config-fp }}" ]]; then
+            pwd && ls -l
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
           ## If running on Windows, use the full path (19201)
