@@ -450,7 +450,7 @@ jobs:
         id: previous-tag
         run: |
           if [[ ${{ inputs.allow-version-prefix }} == true ]]; then
-            prefixed_tag=$(git for-each-ref --sort=-creatordate --count 5 --format="%(refname:short)" "refs/tags/" | grep -E "^[a-z]*-*[0-9]{1,3}\.[0-9]+\.[0-9]+" | head -n 1)
+            prefixed_tag=$(git for-each-ref --sort=-creatordate --count 50 --format="%(refname:short)" "refs/tags/" | grep -E "^[a-z]*-*[0-9]{1,3}\.[0-9]+\.[0-9]+" | head -n 1)
             tag=${prefixed_tag/#version-}
           else
             tag=$(git for-each-ref --sort=-creatordate --count 10 --format="%(refname:short)" "refs/tags/" | grep -E "^[0-9]{1,3}\.[0-9]+\.[0-9]+" | head -n 1)
