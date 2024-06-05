@@ -60,6 +60,11 @@ on:
         description: Whether to upload JUnit test results XML
         type: boolean
         default: true
+      traces-fp:
+        description: Path of Amalgam trace files
+        type: string
+        default: './traces'
+        required: false
 
 defaults:
   run:
@@ -230,7 +235,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
-          path: ./traces
+          path: ${{ inputs.traces-fp }}
 
       - name: Upload test results
         if: always()
