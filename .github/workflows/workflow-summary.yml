@@ -16,6 +16,10 @@ on:
         description: The location of the build.sh script to use for requirements installation
         required: false
         default: .
+      benchmarker-config:
+        type: string
+        description: A benchmarker configuration file used in a benchmarker run that should be reported in the summary
+        required: false
 
 jobs:
 
@@ -213,6 +217,11 @@ jobs:
             sed -i "s|{$repo-sha}|$pkg_sha|g" ./.github/templates/version_summary.md
             sed -i "s|{$repo-url}|$pkg_url|g" ./.github/templates/version_summary.md
           done
+
+          # Add benchmarker config info
+          if [[ -n "${{ inputs.benchmarker-config }}" ]]; then
+            sed -i "s|{benchmarker-config}|${{ inputs.benchmarker-config }}|g" ./.github/templates/version_summary.md
+          fi
 
           # Remove unecessary quotations from variable substitutions
           sed -i "s|\"||g" ./.github/templates/version_summary.md
