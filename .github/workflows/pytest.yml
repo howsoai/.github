@@ -193,9 +193,16 @@ jobs:
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
+          # Set HOWSO_CONFIG
           if [[ -n "${{ inputs.config-fp }}" ]]; then
             pwd && ls -l
             export HOWSO_CONFIG=${{ inputs.config-fp }}
+          fi
+          # Set AMALGAM_LIBRARY_POSTFIX (for amalgam-lang-py UTs)
+          if [[ "${{ inputs.config-fp }}" == *"-mt"* ]]; then
+            export AMALGAM_LIBRARY_POSTFIX="-mt"
+          else
+            export AMALGAM_LIBRARY_POSTFIX="-st"
           fi
           ## If running on Windows, use the full path (19201)
           #if [[ "${{ inputs.platform-pretty }}" == "Windows" ]]; then
