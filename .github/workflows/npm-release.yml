@@ -1,0 +1,67 @@
+name: Reusable WF - Release NPM Package
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The package version of the release
+        type: string
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  release:
+    environment:
+      name: Artifactory
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "21.x"
+          registry-url: ${{ secrets.JFROG_URL }}/artifactory/npm-remote
+
+      - name: Set package version
+        run: |
+          sed -i "s|\"version\": \"0.0.0\"|\"version\": \"${{ inputs.version }}\"|g" ./package.json
+
+      - name: Install dependencies
+        env:
+          NPM_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
+        run: |
+          echo -e "\n//dpbuild.jfrog.io/:_authToken=${NPM_TOKEN}" >> .npmrc
+          npm ci
+
+      - name: Build package
+        run: |
+          npm run build
+          # Remove .npmrc so that we can easily change registries to npm-edge (for publishing)
+          rm -f .npmrc
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "21.x"
+          registry-url: ${{ secrets.JFROG_URL }}/artifactory/api/npm/npm-edge/
+
+      - name: Publish Node package
+        run: |
+          npm publish
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ inputs.version }}
+          commit: ${{ github.sha }}
+          name: "${{ github.event.repository.name }} ${{ inputs.version }}"
+          artifactErrorsFailBuild: true
+          generateReleaseNotes: true
+          makeLatest: legacy
