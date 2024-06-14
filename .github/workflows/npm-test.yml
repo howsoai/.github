@@ -1,0 +1,29 @@
+name: Reusable WF - Test NPM Package
+
+on:
+  workflow_call:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  npm-test:
+    # Regression testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        env:
+          NPM_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
+        run: |
+          echo -e "\n//dpbuild.jfrog.io/:_authToken=${NPM_TOKEN}" >> .npmrc
+          npm ci
+
+      - name: Test
+        run: npm run test
