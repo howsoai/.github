@@ -90,6 +90,11 @@ jobs:
       - name: Run workflow
         if: inputs.override == '' && env.RUN_ID == ''
         run: |
+          # If doing a post-engine-py-release devcontainers build, give it some more time for PyPi to refresh
+          if [[ "${{ inputs.repo }}" == "howso-devcontainers" ]]; then
+            echo "Giving PyPi some extra time to update (sleep 30)"
+            sleep 30
+          fi
           echo "Initializing workflow run: ${{ inputs.workflow-name }}"
           echo '${{ inputs.payload }}' | gh workflow run ${{ inputs.workflow-name }} -R ${{ inputs.owner }}/${{ inputs.repo }} --json
 
