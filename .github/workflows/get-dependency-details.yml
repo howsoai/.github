@@ -102,6 +102,7 @@ jobs:
           fi
 
           echo "Searching for ${{ inputs.repo }} build id '$ID'..."
+
           # If ID is a platform release tag, find the corresponding GitHub release
           if [[ "$ID" =~ "release-" ]]; then
             git fetch --tags
@@ -131,6 +132,17 @@ jobs:
                 echo "No matching GitHub release found for $ID."
                 exit 1
             fi
+          fi
+
+          # If ID is "latest", get the latest GitHub release
+          if [[ "$ID" == "latest" ]]; then
+            echo "Getting latest release..."
+            # List all releases using GitHub CLI, but get just the latest
+            tags=$(gh release list --repo ${{ inputs.owner }}/${{ inputs.repo }} --limit 1 --json tagName | jq -r '.[].tagName')
+            for tag in $tags; do
+                ID=$tag
+            done
+            echo "$ID is the latest release"
           fi
 
           # Query the GitHub CLI for build artifacts
