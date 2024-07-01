@@ -210,6 +210,13 @@ jobs:
           else
             export AMALGAM_LIBRARY_POSTFIX="-st"
           fi
+          # Set AWS credentials, if applicable
+          if [[ "${{ secrets.AWS_TEST_RW_USERNAME }}" ]]; then
+            echo "Setting AWS secrets..."
+            export AWS_TEST_RW_USERNAME=${{ secrets.AWS_TEST_RW_USERNAME }}
+            export AWS_TEST_RW_ACCESSKEY=${{ secrets.AWS_TEST_RW_ACCESSKEY }}
+            export AWS_TEST_RW_ACCESSKEYSECRET=${{ secrets.AWS_TEST_RW_ACCESSKEYSECRET }}
+          fi
           ## If running on Windows, use the full path (19201)
           #if [[ "${{ inputs.platform-pretty }}" == "Windows" ]]; then
           #  sed -i "s|pip|C:\hostedtoolcache\windows\Python\${{ inputs.python-version }}.*\x64\python.exe|g" ./bin/build.sh
