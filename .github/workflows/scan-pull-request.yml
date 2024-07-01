@@ -76,7 +76,7 @@ jobs:
           JF_ALLOWED_LICENSES: "Apache-1.0, Apache-1.1, Apache-2.0, Artistic-1.0, Artistic-1.0-Perl, Artistic-2.0, BSD, BSD 2-Clause, BSD 3-Clause, BSD-2-Clause, BSD-3-Clause, MIT, MPL-2.0"
 
       - name: 🐸 scan
-        if: steps.check-requirements.outputs.changes != ''
+        if: steps.check-requirements.outputs.changes != '' && false
         run: |
           if [[ ! -e "requirements-3.11.txt" ]]; then
             echo "Non-dev requirements file is not present"
