@@ -64,6 +64,8 @@ jobs:
           done
           # Remove matplotlib, too, as its license is not properly detected
           rm -f ./dist/matplotlib*
+          # Remove xgboost
+          rm -f ./dist/nvidia*
           ls ./dist
 
       - uses: jfrog/setup-jfrog-cli@v4
