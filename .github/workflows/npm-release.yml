@@ -25,10 +25,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "21.x"
-          registry-url: ${{ secrets.JFROG_URL }}/artifactory/npm-remote
+#     - uses: actions/setup-node@v4
+#       with:
+#         node-version: "21.x"
+#         registry-url: ${{ secrets.JFROG_URL }}/artifactory/npm-remote
 
       - name: Set package version
         run: |
