@@ -250,6 +250,14 @@ jobs:
             python -m pytest -n ${{ inputs.workers }} -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           fi
 
+      - name: Check for skipped tests
+        continue-on-error: true
+        run: |
+          SKIPPED=$(sed -n 's/.*skipped="\([0-9]\{1,\}\)".*/\1/p' junit/test-results.xml)
+          if [[ "$SKIPPED" != "0" ]]; then
+            echo "::warning title=Skipped Tests::[${{ inputs.python-version }}/${{inputs.platform-pretty}}/${{ inputs.config-pretty }}] This workflow run included ${SKIPPED} skipped tests!"
+          fi
+
       - name: Upload trace files
         if: always()
         uses: actions/upload-artifact@v4
