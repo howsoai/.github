@@ -81,6 +81,7 @@ jobs:
     name: Pytest ${{ matrix.target }} (${{ inputs.python-version }}, ${{inputs.platform-pretty}}, ${{ inputs.config-pretty }})
     runs-on: ${{ inputs.platform }}
     strategy:
+      fail-fast: false
       matrix:
         target: ${{ fromJson(inputs.targets) }}
     steps:
