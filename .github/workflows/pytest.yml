@@ -70,6 +70,11 @@ on:
         type: boolean
         default: true
         required: false
+      cat-logs-from-target:
+        description: Whether to print the contents of {target}.txt
+        type: boolean
+        required: false
+        default: false
 
 defaults:
   run:
@@ -250,6 +255,13 @@ jobs:
           else
             python -m pytest -n ${{ inputs.workers }} -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           fi
+
+      - name: Expand test logs
+        if: inputs.cat-logs-from-target
+        continue-on-error: true
+        run: |
+          ls ${{ matrix.target }}
+          cat ${{ matrix.target }}.txt
 
       - name: Check for skipped tests
         continue-on-error: true
