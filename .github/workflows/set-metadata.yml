@@ -27,6 +27,9 @@ on:
       howso-validator-py-build:
         required: false
         type: string
+      howso-watermarker-py-build:
+        required: false
+        type: string
       howso-validator-enterprise-py-build:
         required: false
         type: string
@@ -102,6 +105,7 @@ jobs:
           "amalgam-lang-py": "${{ inputs.amalgam-lang-py-build }}",
           "howso-engine-py": "${{ inputs.howso-engine-py-build }}",
           "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
+          "howso-watermarker-py": "${{ inputs.howso-watermarker-py-build }}",
           "howso-validator-py": "${{ inputs.howso-validator-py-build }}",
           "howso-validator-enterprise-py": "${{ inputs.howso-validator-enterprise-py-build }}"
         }
@@ -134,6 +138,17 @@ jobs:
     with:
       owner: "howsoai"
       repo: "howso-synthesizer-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
+
+  get-howso-watermarker-py-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-watermarker-py"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
       checkout-repo: ${{ inputs.checkout-repos }}
@@ -211,6 +226,7 @@ jobs:
       - get-howso-validator-py-details
       - get-howso-validator-enterprise-py-details
       - get-howso-synthesizer-py-details
+      - get-howso-watermarker-py-details
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
@@ -257,6 +273,14 @@ jobs:
               "build_title": "${{ needs.get-howso-engine-py-details.outputs.build-title }}",
               "head_sha": "${{ needs.get-howso-engine-py-details.outputs.head-sha }}",
               "url": "${{ needs.get-howso-engine-py-details.outputs.url }}"
+            },
+            "howso-watermarker-py": {
+              "run_id": "${{ needs.get-howso-watermarker-py-details.outputs.run-id }}",
+              "run_type": "${{ needs.get-howso-watermarker-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-watermarker-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-watermarker-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-watermarker-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-watermarker-py-details.outputs.url }}"
             },
             "howso-synthesizer-py": {
               "run_id": "${{ needs.get-howso-synthesizer-py-details.outputs.run-id }}",
