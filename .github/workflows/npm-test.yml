@@ -8,7 +8,6 @@ defaults:
     shell: bash
 
 jobs:
-
   npm-test:
     # Regression testing
     runs-on: ubuntu-latest
@@ -18,12 +17,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: npm audit
+        run: npm audit --audit-level=high --omit=dev
+
       - name: Install dependencies
         env:
           NPM_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
         run: |
           echo -e "\n//dpbuild.jfrog.io/:_authToken=${NPM_TOKEN}" >> .npmrc
           npm ci
+
+      - name: prettier --check
+        run: npx prettier --check
 
       - name: Test
         run: npm run test
