@@ -79,7 +79,7 @@ on:
         description: Run Pytest with GDB and print a stacktrace (LINUX ONLY!)
         type: boolean
         required: false
-        default: false
+        default: true
 
 defaults:
   run:
@@ -210,6 +210,12 @@ jobs:
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
+          # Adjust MT Howso config for debug mode (MT/Linux/amd64 ONLY)
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.config-fp }}" == *"mt-debug"* && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
+            echo "Enabling AMALGAM_FAST_MEMORY_INTEGRITY..."
+            sed -i "s|-mt|-mt-afmi|g" ${{ inputs.config-fp }}
+            cat ${{ inputs.config-fp }}
+          fi
           # Set HOWSO_CONFIG
           if [[ -n "${{ inputs.config-fp }}" ]]; then
             pwd && ls -l
@@ -254,17 +260,27 @@ jobs:
             export PYTHONUTF8=1
           fi
 
-          # Debug mode
-          if [[ "${{ inputs.debug}}" == "true" ]]; then
+          # Debug mode (MT/Linux/amd64 only)
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.config-fp }}" == *"mt-debug"* && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
             # Run GDB in batch mode and capture the output
             sudo apt-get install -y gdb
             echo "done installing"
-            if [[ "${{ inputs.workers }}" == "off" ]]; then
-              gdb -batch -ex run -ex backtrace gdb_commands.gdb --args python -m pytest -s ${{ matrix.target }}
-            else
-              gdb -batch -ex run -ex backtrace gdb_commands.gdb --args python -m pytest -n ${{ inputs.workers }} -s ${{ matrix.target }}
+            output=$(gdb -batch -ex run -ex backtrace --args python -m pytest -s ${{ matrix.target }} 2>&1) || code=$?
+            # Check if GDB failed
+            if [ $code -eq 1 ]; then
+                echo "Received exit 1 from GDB"
+                echo "$output"
+                # Check if the output contains a stack trace
+                if echo "$output" | tail -n 1 | grep -q "No stack"; then
+                    # If there is no stack trace, exit with code 0
+                    echo "$output"
+                    exit 0
+                else
+                  exit 1
+                fi
             fi
-            exit 0
+            echo "$output"
+            exit 1
           fi
 
           # Run unit tests
