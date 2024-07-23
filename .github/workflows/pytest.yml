@@ -251,9 +251,9 @@ jobs:
 
           # Run unit tests
           if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest -s ${{ matrix.target }} --junitxml=junit/test-results.xml
+            python -m pytest -vvvvv -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           else
-            python -m pytest -n ${{ inputs.workers }} -s ${{ matrix.target }} --junitxml=junit/test-results.xml
+            python -m pytest -vvvvv -n ${{ inputs.workers }} -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           fi
 
       - name: Expand test logs
