@@ -75,6 +75,11 @@ on:
         type: boolean
         required: false
         default: false
+      debug:
+        description: Run Pytest with GDB and print a stacktrace (LINUX ONLY!)
+        type: boolean
+        required: false
+        default: false
 
 defaults:
   run:
@@ -249,6 +254,19 @@ jobs:
             export PYTHONUTF8=1
           fi
 
+          # Debug mode
+          if [[ "${{ inputs.debug}}" == "true" ]]; then
+            # Run GDB in batch mode and capture the output
+            sudo apt-get install -y gdb
+            echo "done installing"
+            if [[ "${{ inputs.workers }}" == "off" ]]; then
+              gdb -batch -ex run -ex backtrace gdb_commands.gdb --args python -m pytest -s ${{ matrix.target }}
+            else
+              gdb -batch -ex run -ex backtrace gdb_commands.gdb --args python -m pytest -n ${{ inputs.workers }} -s ${{ matrix.target }}
+            fi
+            exit 0
+          fi
+
           # Run unit tests
           if [[ "${{ inputs.workers }}" == "off" ]]; then
             python -m pytest -s ${{ matrix.target }} --junitxml=junit/test-results.xml
@@ -288,7 +306,7 @@ jobs:
 
   upload-test-results:
     needs: ['test']
-    if: inputs.test-results-upload == true
+    if: inputs.test-results-upload == true && ! inputs.debug
     permissions:
       contents: read
       issues: read
