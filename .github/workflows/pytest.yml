@@ -79,7 +79,7 @@ on:
         description: Run Pytest with GDB and print a stacktrace (LINUX ONLY!)
         type: boolean
         required: false
-        default: true
+        default: false
 
 defaults:
   run:
