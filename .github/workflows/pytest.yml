@@ -252,6 +252,7 @@ jobs:
           # The below may fail if there are no howso-branded packages installed, i.e., in the case of howso-run-py
           pip list | grep amalgam || true
           pip list | grep howso || true
+          pip list | grep numpy || true
           env | grep HOWSO_CONFIG || true
           echo "Running pytests..."
 
