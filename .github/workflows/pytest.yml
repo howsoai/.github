@@ -211,18 +211,17 @@ jobs:
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           # Adjust MT Howso config for debug mode (MT/Linux/amd64 ONLY)
-          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.config-fp }}" == *"mt-debug"* && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
             echo "Enabling AMALGAM_FAST_MEMORY_INTEGRITY..."
             sed -i "s|-mt|-mt-afmi|g" ${{ inputs.config-fp }}
             cat ${{ inputs.config-fp }}
-          fi
-          # Set HOWSO_CONFIG
-          if [[ -n "${{ inputs.config-fp }}" ]]; then
-            pwd && ls -l
+          else
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
           # Set AMALGAM_LIBRARY_POSTFIX (for amalgam-lang-py UTs)
-          if [[ "${{ inputs.config-fp }}" == *"-mt"* ]]; then
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
+            export AMALGAM_LIBRARY_POSTFIX="-mt-afmi"
+          elif [[ "${{ inputs.config-fp }}" == *"-mt"* ]]; then
             export AMALGAM_LIBRARY_POSTFIX="-mt"
           else
             export AMALGAM_LIBRARY_POSTFIX="-st"
@@ -261,30 +260,31 @@ jobs:
             export PYTHONUTF8=1
           fi
 
-          # Debug mode (MT/Linux/amd64 only)
-          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.config-fp }}" == *"mt-debug"* && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
+          # Debug mode
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
             # Run GDB in batch mode and capture the output
             sudo apt-get install -y gdb
-            echo "done installing"
-            output=$(gdb -batch -ex run -ex backtrace --args python -m pytest -s ${{ matrix.target }} 2>&1) || code=$?
-            # Check if GDB failed
-            if [ $code -eq 1 ]; then
-                echo "Received exit 1 from GDB"
-                echo "$output"
-                # Check if the output contains a stack trace
-                if echo "$output" | tail -n 1 | grep -q "No stack"; then
-                    # If there is no stack trace, exit with code 0
-                    echo "$output"
-                    exit 0
-                else
-                  exit 1
-                fi
+            echo "GDB installation complete"
+            set +e
+            # Capture GDB output
+            gdb_output=$(gdb -batch -ex run -ex backtrace --args python -m pytest -s ${{ matrix.target }})
+            gdb_exit_code=$?
+            # Evaluate GDB exit code and exit this workflow accordingly
+            if [[ $gdb_exit_code -ne 0 ]]; then
+              # If GDB exited with an error but the test process passed, exit 0
+              if echo "$gdb_output" | tail -n 2 | grep -q "exited normally"; then
+                exit 0
+              # Else, the test process failed, exit 1
+              else
+                exit 1
+              fi
+            else
+              # If GDB exited with code 0, there was a segfault
+              exit 139
             fi
-            echo "$output"
-            exit 1
           fi
 
-          # Run unit tests
+          # Run unit tests (non-debug)
           if [[ "${{ inputs.workers }}" == "off" ]]; then
             python -m pytest -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           else
