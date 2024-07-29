@@ -213,7 +213,15 @@ jobs:
           # Adjust MT Howso config for debug mode (MT/Linux/amd64 ONLY)
           if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
             echo "Enabling AMALGAM_FAST_MEMORY_INTEGRITY..."
-            export HOWSO_CONFIG=./config/latest-mt-debug-howso.yml
+            
+            # Synthesizer and engine recipes have different structures which require custom config file paths
+            if [[ "${{ github.event.repository.name }}" == "howso-synthesizer-recipes" ]]; then
+              export HOWSO_CONFIG=~/work/howso-synthesizer-recipes/howso-synthesizer-recipes/config/latest-mt-debug-howso.yml
+            elif [[ "${{ github.event.repository.name }}" == "howso-engine-recipes" ]]; then
+              export HOWSO_CONFIG=~/work/howso-engine-recipes/howso-engine-recipes/config/latest-mt-debug-howso.yml
+            else
+              export HOWSO_CONFIG=./config/latest-mt-debug-howso.yml
+            fi
           else
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
