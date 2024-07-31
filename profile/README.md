@@ -18,7 +18,7 @@ The [Howso Engine™](https://howso.com/engine) is a natively and fully explaina
 
 ## Install Howso Engine
 
-We recommend most developers and data sciencists use Howso's Python wrapper to get started:  
+We recommend most developers and data scientists use Howso's Python wrapper to get started:  
 [Engine Repository (Python)](https://github.com/howsoai/howso-engine-py)
 > Installation instructions can be found in the README.md file of the Engine repository.
 

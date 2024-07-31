@@ -75,6 +75,11 @@ on:
         type: boolean
         required: false
         default: false
+      debug:
+        description: Run Pytest with GDB and print a stacktrace (LINUX ONLY!)
+        type: boolean
+        required: false
+        default: false
 
 defaults:
   run:
@@ -205,13 +210,25 @@ jobs:
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
-          # Set HOWSO_CONFIG
-          if [[ -n "${{ inputs.config-fp }}" ]]; then
-            pwd && ls -l
+          # Adjust MT Howso config for debug mode (MT/Linux/amd64 ONLY)
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
+            echo "Enabling AMALGAM_FAST_MEMORY_INTEGRITY..."
+            
+            # Synthesizer and engine recipes have different structures which require custom config file paths
+            if [[ "${{ github.event.repository.name }}" == "howso-synthesizer-recipes" ]]; then
+              export HOWSO_CONFIG=~/work/howso-synthesizer-recipes/howso-synthesizer-recipes/config/latest-mt-debug-howso.yml
+            elif [[ "${{ github.event.repository.name }}" == "howso-engine-recipes" ]]; then
+              export HOWSO_CONFIG=~/work/howso-engine-recipes/howso-engine-recipes/config/latest-mt-debug-howso.yml
+            else
+              export HOWSO_CONFIG=./config/latest-mt-debug-howso.yml
+            fi
+          else
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
           # Set AMALGAM_LIBRARY_POSTFIX (for amalgam-lang-py UTs)
-          if [[ "${{ inputs.config-fp }}" == *"-mt"* ]]; then
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
+            export AMALGAM_LIBRARY_POSTFIX="-mt-afmi"
+          elif [[ "${{ inputs.config-fp }}" == *"-mt"* ]]; then
             export AMALGAM_LIBRARY_POSTFIX="-mt"
           else
             export AMALGAM_LIBRARY_POSTFIX="-st"
@@ -241,6 +258,7 @@ jobs:
           # The below may fail if there are no howso-branded packages installed, i.e., in the case of howso-run-py
           pip list | grep amalgam || true
           pip list | grep howso || true
+          pip list | grep numpy || true
           env | grep HOWSO_CONFIG || true
           echo "Running pytests..."
 
@@ -249,7 +267,32 @@ jobs:
             export PYTHONUTF8=1
           fi
 
-          # Run unit tests
+          # Debug mode
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
+            # Run GDB in batch mode and capture the output
+            sudo apt-get install -y gdb
+            echo "GDB installation complete"
+            set +e
+            # Capture GDB output
+            gdb_output=$(gdb -batch -ex run -ex backtrace --args python -m pytest -s ${{ matrix.target }})
+            gdb_exit_code=$?
+            echo "$gdb_output"
+            # Evaluate GDB exit code and exit this workflow accordingly
+            if [[ $gdb_exit_code -ne 0 ]]; then
+              # If GDB exited with an error but the test process passed, exit 0
+              if echo "$gdb_output" | tail -n 2 | grep -q "exited normally"; then
+                exit 0
+              # Else, the test process failed, exit 1
+              else
+                exit 1
+              fi
+            else
+              # If GDB exited with code 0, there was a segfault
+              exit 139
+            fi
+          fi
+
+          # Run unit tests (non-debug)
           if [[ "${{ inputs.workers }}" == "off" ]]; then
             python -m pytest -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           else
@@ -288,7 +331,7 @@ jobs:
 
   upload-test-results:
     needs: ['test']
-    if: inputs.test-results-upload == true
+    if: inputs.test-results-upload == true && ! inputs.debug
     permissions:
       contents: read
       issues: read
