@@ -131,7 +131,7 @@ jobs:
           mkdir -p data && cp -r .dataset_cache/howso/* ./data/
           # Extract all compressed files
           find ./data -type f -name "*.gz" -print0 | xargs -0 gunzip
-          ls -a ./data/NYC_parking
+          ls -a ./data/wikipedia
 
       - name: Set up Docker
         if: inputs.setup-docker == true
