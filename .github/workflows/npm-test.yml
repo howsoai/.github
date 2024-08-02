@@ -27,5 +27,8 @@ jobs:
           echo -e "\n//dpbuild.jfrog.io/:_authToken=${NPM_TOKEN}" >> .npmrc
           npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Test
         run: npm run test
