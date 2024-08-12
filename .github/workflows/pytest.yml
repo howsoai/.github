@@ -210,24 +210,31 @@ jobs:
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
+          # Determine if using Amalgam MT/ST based on provided config
+          if [[ "${{ inputs.config-fp }}" == *"-mt"* ]]; then
+            AMLG_TYPE="mt"
+          else
+            AMLG_TYPE="st"
+          fi
+
           # Adjust MT Howso config for debug mode (MT/Linux/amd64 ONLY)
-          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
-            echo "Enabling AMALGAM_FAST_MEMORY_INTEGRITY..."
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
+            echo "Enabling AMALGAM_FAST_MEMORY_INTEGRITY ($AMLG_TYPE)..."
             
             # Synthesizer and engine recipes have different structures which require custom config file paths
             if [[ "${{ github.event.repository.name }}" == "howso-synthesizer-recipes" ]]; then
-              export HOWSO_CONFIG=~/work/howso-synthesizer-recipes/howso-synthesizer-recipes/config/latest-mt-debug-howso.yml
+              export HOWSO_CONFIG=~/work/howso-synthesizer-recipes/howso-synthesizer-recipes/config/latest-$AMLG_TYPE-debug-howso.yml
             elif [[ "${{ github.event.repository.name }}" == "howso-engine-recipes" ]]; then
-              export HOWSO_CONFIG=~/work/howso-engine-recipes/howso-engine-recipes/config/latest-mt-debug-howso.yml
+              export HOWSO_CONFIG=~/work/howso-engine-recipes/howso-engine-recipes/config/latest-$AMLG_TYPE-debug-howso.yml
             else
-              export HOWSO_CONFIG=./config/latest-mt-debug-howso.yml
+              export HOWSO_CONFIG=./config/latest-$AMLG_TYPE-debug-howso.yml
             fi
           else
             export HOWSO_CONFIG=${{ inputs.config-fp }}
           fi
           # Set AMALGAM_LIBRARY_POSTFIX (for amalgam-lang-py UTs)
-          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
-            export AMALGAM_LIBRARY_POSTFIX="-mt-afmi"
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
+            export AMALGAM_LIBRARY_POSTFIX="-$AMLG_TYPE-afmi"
           elif [[ "${{ inputs.config-fp }}" == *"-mt"* ]]; then
             export AMALGAM_LIBRARY_POSTFIX="-mt"
           else
@@ -268,7 +275,7 @@ jobs:
           fi
 
           # Debug mode
-          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" && "${{ inputs.config-fp }}" == *"-mt"* ]]; then
+          if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
             # Run GDB in batch mode and capture the output
             sudo apt-get install -y gdb
             echo "GDB installation complete"
@@ -278,17 +285,11 @@ jobs:
             gdb_exit_code=$?
             echo "$gdb_output"
             # Evaluate GDB exit code and exit this workflow accordingly
-            if [[ $gdb_exit_code -ne 0 ]]; then
-              # If GDB exited with an error but the test process passed, exit 0
-              if echo "$gdb_output" | tail -n 2 | grep -q "exited normally"; then
-                exit 0
-              # Else, the test process failed, exit 1
-              else
-                exit 1
-              fi
+            if echo "$gdb_output" | tail -n 100 | grep -q "exited normally"; then
+              exit 0
+            # Else, something failed, exit 1
             else
-              # If GDB exited with code 0, there was a segfault
-              exit 139
+              exit 1
             fi
           fi
 
