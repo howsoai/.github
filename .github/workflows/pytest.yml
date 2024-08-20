@@ -308,6 +308,7 @@ jobs:
           cat ${{ matrix.target }}.txt
 
       - name: Check for skipped tests
+        if: ${{ github.event.repository.name == 'howso-engine-py' || github.event.repository.name == 'howso-synthesizer-py' }} 
         continue-on-error: true
         run: |
           SKIPPED=$(sed -n 's/.*skipped="\([0-9]\{1,\}\)".*/\1/p' junit/test-results.xml)
