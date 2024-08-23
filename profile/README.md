@@ -86,10 +86,6 @@ This project serves simply to overlay add an "extra" configuration to ensure tel
 
 Please post questions to [Stack Overflow](https://stackoverflow.com/) using the tag: 'Howso'.
 
-## License
-
-[License](../LICENSE.txt)
-
 ## Contributing
 
 [Contributing](../CONTRIBUTING.md)
