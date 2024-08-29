@@ -82,12 +82,12 @@ jobs:
 
             echo "Parsing PR #$PR_NUMBER for automated commits..."
             set +e
-            echo "$COMMITS" | grep -q '"author": "howso-automation"'
-            set -e
+            echo "$COMMITS" | grep -q "howso-automation"
             if [ $? -eq 0 ]; then
               echo "At least one commit was authored by howso-automation; skipping rebuild."
               unset changes
             fi
+            set -e
           fi
 
           if [ -n "$changes" ]; then
