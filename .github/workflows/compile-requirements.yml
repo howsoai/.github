@@ -81,9 +81,9 @@ jobs:
             COMMITS=$(gh pr view $PR_NUMBER --json commits --jq '.commits[].commit')
 
             echo "Parsing PR #$PR_NUMBER for automated commits..."
-
+            set +e
             echo "$COMMITS" | grep -q '"author": "howso-automation"'
-
+            set -e
             if [ $? -eq 0 ]; then
               echo "At least one commit was authored by howso-automation; skipping rebuild."
               unset changes
