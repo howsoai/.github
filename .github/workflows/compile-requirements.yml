@@ -78,7 +78,8 @@ jobs:
           echo "event_name: ${{ github.event_name }}"
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             PR_NUMBER=$(echo "${{ github.ref }}" | sed 's/refs\/pull\/\([0-9]*\)\/merge/\1/')
-            COMMITS=$(gh pr view $PR_NUMBER --json commits --jq '.commits[].commit')
+            COMMITS=$(gh pr view $PR_NUMBER --json commits --jq '.commits[]')
+            echo "$COMMITS"
 
             echo "Parsing PR #$PR_NUMBER for automated commits..."
             set +e
