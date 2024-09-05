@@ -197,9 +197,6 @@ jobs:
           fi
           # Do not include Howso software in the 3rd party license file
           pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
-          # Remove seaborn as we may be using a GitHub-only release, but then install a pip version as the license will be the same
-          pip uninstall seaborn -y
-          pip install seaborn
           pip install pip-licenses
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
 
