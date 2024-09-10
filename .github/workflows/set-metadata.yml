@@ -583,7 +583,7 @@ jobs:
           fi
 
           # Check if valid semver:
-          regex='^([0-9]+\.){2}(\*|[0-9]+)(-.*)?$'
+          regex='^([0-9]+\.){2}(\*|[0-9]+)(-.*)?(\+.*)?$'
           if [[ ! "$RELEASE_TAG" =~ $regex ]]; then
             echo "❌ - Release tag is not a valid semver: $RELEASE_TAG"
             exit 1
