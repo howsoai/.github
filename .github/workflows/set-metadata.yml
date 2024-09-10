@@ -53,6 +53,11 @@ on:
         type: boolean
         required: false
         default: false
+      wasm:
+        description: If the repo calling this workflow uses a WASM build of Amalgam, enable this to place the appropriate artifacts in src/webassembly.
+        type: boolean
+        required: false
+        default: false
     outputs:
       upstream-details:
         value: ${{ jobs.set-metadata.outputs.upstream-details }}
