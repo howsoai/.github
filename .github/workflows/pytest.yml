@@ -56,6 +56,10 @@ on:
         type: string
         required: false
         default: '["."]'
+      extra-args:
+        description: Additional Pytest args, such as a marker specification
+        type: string
+        required: false
       test-results-upload:
         description: Whether to upload JUnit test results XML
         type: boolean
@@ -281,7 +285,7 @@ jobs:
             echo "GDB installation complete"
             set +e
             # Capture GDB output
-            gdb_output=$(gdb -batch -ex run -ex backtrace --args python -m pytest -s ${{ matrix.target }})
+            gdb_output=$(gdb -batch -ex run -ex backtrace --args python -m pytest ${{ inputs.extra-args}} -s ${{ matrix.target }})
             gdb_exit_code=$?
             echo "$gdb_output"
             # Evaluate GDB exit code and exit this workflow accordingly
@@ -295,9 +299,9 @@ jobs:
 
           # Run unit tests (non-debug)
           if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest -s ${{ matrix.target }} --junitxml=junit/test-results.xml
+            python -m pytest ${{ inputs.extra-args }} -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           else
-            python -m pytest -n ${{ inputs.workers }} -s ${{ matrix.target }} --junitxml=junit/test-results.xml
+            python -m pytest ${{ inputs.extra-args}} -n ${{ inputs.workers }} -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           fi
 
       - name: Expand test logs

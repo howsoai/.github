@@ -2,6 +2,10 @@ name: Reusable WF - Test NPM Package
 
 on:
   workflow_call:
+    inputs:
+      upstream-details:
+        required: false
+        type: string
 
 defaults:
   run:
@@ -12,10 +16,26 @@ jobs:
     # Regression testing
     runs-on: ubuntu-latest
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Download and embed Amalgam (WASM)
+        if: inputs.upstream-details != ''
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+        run: |
+            echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
+            run_type=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_type"')
+            run_id=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_id"')
+            gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}*" "$run_id"
+            # Extract binaries
+            cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+            cp lib/* .
+            ls -l
+            cd ../../../..
 
       - name: npm audit
         run: npm audit --audit-level=high --omit=dev
