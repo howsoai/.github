@@ -53,6 +53,11 @@ on:
         type: boolean
         required: false
         default: false
+      wasm:
+        description: If the repo calling this workflow uses a WASM build of Amalgam, enable this to place the appropriate artifacts in src/webassembly.
+        type: boolean
+        required: false
+        default: false
     outputs:
       upstream-details:
         value: ${{ jobs.set-metadata.outputs.upstream-details }}
@@ -583,7 +588,7 @@ jobs:
           fi
 
           # Check if valid semver:
-          regex='^([0-9]+\.){2}(\*|[0-9]+)(-.*)?$'
+          regex='^([0-9]+\.){2}(\*|[0-9]+)(-.*)?(\+.*)?$'
           if [[ ! "$RELEASE_TAG" =~ $regex ]]; then
             echo "❌ - Release tag is not a valid semver: $RELEASE_TAG"
             exit 1

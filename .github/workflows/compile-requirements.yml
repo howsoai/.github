@@ -68,9 +68,26 @@ jobs:
             changes="no requirements.txt"
           fi
 
+          # Don't rebuild if the last commit was a rebuild
           if [[ "${{ github.actor }}" == "dmglennie-diveplane" ]]; then
             echo "Requirements were generated in the last commit!"
             unset changes
+          fi
+
+          # Also don't rebuild if there was a previous rebuild at all
+          echo "event_name: ${{ github.event_name }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PR_NUMBER=$(echo "${{ github.ref }}" | sed 's/refs\/pull\/\([0-9]*\)\/merge/\1/')
+            COMMITS=$(gh pr view $PR_NUMBER --json commits --jq '.commits[]')
+
+            echo "Parsing PR #$PR_NUMBER for automated commits..."
+            set +e
+            echo "$COMMITS" | grep -q "howso-automation"
+            if [ $? -eq 0 ]; then
+              echo "At least one commit was authored by howso-automation; skipping rebuild."
+              unset changes
+            fi
+            set -e
           fi
 
           if [ -n "$changes" ]; then
