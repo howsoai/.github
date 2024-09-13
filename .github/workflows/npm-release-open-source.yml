@@ -14,7 +14,7 @@ defaults:
 
 # Permissions expanded to allow for provenance
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
