@@ -12,13 +12,14 @@ defaults:
   run:
     shell: bash
 
+# Permissions expanded to allow for provenance
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    # Permissions expanded to allow for provenance
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v4
 
