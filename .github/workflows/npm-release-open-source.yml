@@ -1,0 +1,57 @@
+name: Reusable WF - Release NPM Package
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The package version of the release
+        type: string
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+# Permissions expanded to allow for provenance
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set package version
+        run: |
+          sed -i "s|\"version\": \"0.0.0\"|\"version\": \"${{ inputs.version }}\"|g" ./package.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+
+      - name: Build package
+        run: |
+          npm run build
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "21.x"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish Node package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm publish --provenance --access public
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ inputs.version }}
+          commit: ${{ github.sha }}
+          name: "${{ github.event.repository.name }} ${{ inputs.version }}"
+          artifactErrorsFailBuild: true
+          generateReleaseNotes: true
+          makeLatest: legacy
