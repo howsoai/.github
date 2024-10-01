@@ -149,7 +149,7 @@ jobs:
 
       - name: Download dependencies
         env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
           pwd
           while read -r repo; do

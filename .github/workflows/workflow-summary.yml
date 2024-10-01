@@ -50,7 +50,7 @@ jobs:
 
       - name: Download dependencies
         env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
           while read -r repo; do
             echo "Getting details for $repo"

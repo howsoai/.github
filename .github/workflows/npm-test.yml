@@ -23,7 +23,7 @@ jobs:
       - name: Download and embed Amalgam (WASM)
         if: inputs.upstream-details != ''
         env:
-          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_CLASSIC_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
             echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
             run_type=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "amalgam" '.[$repo]."run_type"')
