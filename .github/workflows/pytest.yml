@@ -258,7 +258,7 @@ jobs:
           # Install requirements.txt
           ./bin/build.sh install_deps ${{ inputs.python-version }}
           # Install any custom package versions
-          declare -a arr=("howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
+          declare -a arr=("howso-watermarker-py" "howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
           for repo in "${arr[@]}"; do
             if [ -d "$repo" ]; then
               echo "Found custom $repo version; installing..."
