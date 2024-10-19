@@ -71,8 +71,8 @@ jobs:
       - name: Validate PR Title
         if: inputs.build-type == 'PR'
         run: |
-          if [[ "${{ github.head_ref }}" =~ "rerun-recipes" || "${{ github.head_ref }}" =~ "gen-requirements" || "${{ github.head_ref }}" =~ "update-devcontainers" || "${{ github.head_ref }}" =~ "dependabot" ]]; then
-            echo "PR title checks disabled on automated recipe or requirements re-run"
+          if [[ "${{ github.head_ref }}" =~ "rerun-recipes" || "${{ github.head_ref }}" =~ "gen-requirements" || "${{ github.head_ref }}" =~ "update-devcontainers" || "${{ github.head_ref }}" =~ "dependabot" || "${{ github.actor }}" == "dmglennie-diveplane" ]]; then
+            echo "PR title checks disabled on autoversion PRs, or automated recipe or requirements re-runs"
             exit 0
           fi
           PR_NUMBER="${{ github.event.number }}"
