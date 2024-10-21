@@ -37,12 +37,23 @@ jobs:
             # Clean out the directory
             rm -rf src/webassembly
             mkdir -p src/webassembly
+            # Release WASM
             gh $run_type download -D src/webassembly -R "howsoai/amalgam" -p "*release-unknown-wasm64*" "$run_id"
             # Extract binaries
             cd src/webassembly && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
             cp bin/* .
             echo "Amalgam version:"
             cat docs/version.json
+            rm -f *.tar.gz
+            rm -rf bin
+            rm -rf docs
+            rm -rf *-wasm64
+            # Debug WASM
+            cd ../..
+            gh $run_type download -D src/webassembly -R "howsoai/amalgam" -p "*debug-unknown-wasm64*" "$run_id"
+            # Extract binaries
+            cd src/webassembly && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+            cp bin/* .
             rm -f *.tar.gz
             rm -rf bin
             rm -rf docs
