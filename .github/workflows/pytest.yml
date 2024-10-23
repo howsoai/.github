@@ -84,6 +84,10 @@ on:
         type: boolean
         required: false
         default: false
+      doctest-modules:
+        description: Run doctests in the provided module
+        type: string
+        required: false
 
 defaults:
   run:
@@ -304,6 +308,11 @@ jobs:
             python -m pytest ${{ inputs.extra-args}} -n ${{ inputs.workers }} -s ${{ matrix.target }} --junitxml=junit/test-results.xml
           fi
 
+      - name: Run doctests
+        if: inputs.doctest-modules != ''
+        run: |
+          python -m pytest --doctest-modules ${{ inputs.doctest-modules }} -v
+
       - name: Expand test logs
         if: inputs.cat-logs-from-target
         continue-on-error: true
@@ -334,7 +343,7 @@ jobs:
           name: "test-results-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
           path: junit/test-results.xml
           overwrite: true
-
+  
   upload-test-results:
     needs: ['test']
     if: inputs.test-results-upload == true && ! inputs.debug
