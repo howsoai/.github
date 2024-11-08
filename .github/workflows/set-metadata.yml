@@ -456,7 +456,8 @@ jobs:
             final_details=$(echo "$final_details" | jq --arg run_id "$ID" --arg repo "howso-engine-py" --arg build_date "$build_date" --arg build_title "$build_title" --arg head_sha "$head_sha" --arg url "$url" '. + {($repo): {"run_type": "run", "run_id": ($run_id), "build_date": ($build_date), "build_title": ($build_title), "head_sha": ($head_sha), "url": ($url)}}')
           fi
           echo "Final upstream details: $final_details"
-          echo "final-upstream-details=$(echo "$final_details" | jq -c)" >> $GITHUB_OUTPUT
+          final_upstream_details=$(echo "$final_details" | jq -c)
+          echo "final-upstream-details=$final_upstream_details" >> $GITHUB_OUTPUT
 
   set-version:
     needs: ['set-metadata']
