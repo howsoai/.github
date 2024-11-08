@@ -106,8 +106,7 @@ jobs:
           "howso-engine-py": "${{ inputs.howso-engine-py-build }}",
           "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
           "howso-watermarker-py": "${{ inputs.howso-watermarker-py-build }}",
-          "howso-validator-py": "${{ inputs.howso-validator-py-build }}",
-          "howso-validator-enterprise-py": "${{ inputs.howso-validator-enterprise-py-build }}"
+          "howso-validator-py": "${{ inputs.howso-validator-py-build }}"
         }
         EOF
         )
@@ -149,17 +148,6 @@ jobs:
     with:
       owner: "howsoai"
       repo: "howso-watermarker-py"
-      payload: "${{ needs.construct-payload.outputs.payload }}"
-      skip-version-json-check: true
-      checkout-repo: ${{ inputs.checkout-repos }}
-
-  get-howso-validator-enterprise-py-details:
-    needs: ['construct-payload']
-    uses: "./.github/workflows/get-dependency-details.yml"
-    secrets: inherit
-    with:
-      owner: "howsoai"
-      repo: "howso-validator-enterprise-py"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
       checkout-repo: ${{ inputs.checkout-repos }}
@@ -224,7 +212,6 @@ jobs:
       - get-amalgam-lang-py-details
       - get-howso-engine-py-details
       - get-howso-validator-py-details
-      - get-howso-validator-enterprise-py-details
       - get-howso-synthesizer-py-details
       - get-howso-watermarker-py-details
     runs-on: ubuntu-latest
@@ -297,14 +284,6 @@ jobs:
               "build_title": "${{ needs.get-howso-validator-py-details.outputs.build-title }}",
               "head_sha": "${{ needs.get-howso-validator-py-details.outputs.head-sha }}",
               "url": "${{ needs.get-howso-validator-py-details.outputs.url }}"
-            },
-            "howso-validator-enterprise-py": {
-              "run_id": "${{ needs.get-howso-validator-enterprise-py-details.outputs.run-id }}",
-              "run_type": "${{ needs.get-howso-validator-enterprise-py-details.outputs.run-type }}",
-              "build_date": "${{ needs.get-howso-validator-enterprise-py-details.outputs.build-date }}",
-              "build_title": "${{ needs.get-howso-validator-enterprise-py-details.outputs.build-title }}",
-              "head_sha": "${{ needs.get-howso-validator-enterprise-py-details.outputs.head-sha }}",
-              "url": "${{ needs.get-howso-validator-enterprise-py-details.outputs.url }}"
             }
           }
           EOF
@@ -455,9 +434,10 @@ jobs:
             url=$(echo $url | tr -d '"')
             final_details=$(echo "$final_details" | jq --arg run_id "$ID" --arg repo "howso-engine-py" --arg build_date "$build_date" --arg build_title "$build_title" --arg head_sha "$head_sha" --arg url "$url" '. + {($repo): {"run_type": "run", "run_id": ($run_id), "build_date": ($build_date), "build_title": ($build_title), "head_sha": ($head_sha), "url": ($url)}}')
           fi
-          echo "Final upstream details: $final_details"
+          echo "Test"
+          #echo "Final upstream details: $final_details"
           final_upstream_details=$(echo "$final_details" | jq -c)
-          echo "final-upstream-details=$final_upstream_details" >> $GITHUB_OUTPUT
+          printf "final-upstream-details=%s" '$final_upstream_details' >> $GITHUB_OUTPUT
 
   set-version:
     needs: ['set-metadata']
