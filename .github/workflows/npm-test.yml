@@ -6,6 +6,10 @@ on:
       upstream-details:
         required: false
         type: string
+      dir:
+        description: Directory to run tests in
+        required: false
+        type: string
 
 defaults:
   run:
@@ -60,6 +64,12 @@ jobs:
             rm -rf *-wasm64
             ls -l
             cd ../../
+
+      - name: Change Directory
+        if: inputs.dir != ''
+        run: |
+          cd ${{ inputs.dir }}
+          pwd && ls
 
       - name: npm audit
         run: npm audit --audit-level=high --omit=dev
