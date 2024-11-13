@@ -10,6 +10,11 @@ on:
         description: Directory to run tests in
         required: false
         type: string
+      audit:
+        description: Whether to run `npm audit`
+        required: false
+        type: boolean
+        default: true
 
 defaults:
   run:
@@ -72,6 +77,7 @@ jobs:
           pwd && ls
 
       - name: npm audit
+        if: inputs.audit
         run: npm audit --audit-level=high --omit=dev
 
       - name: Install dependencies
