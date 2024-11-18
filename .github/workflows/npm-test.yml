@@ -70,25 +70,34 @@ jobs:
             ls -l
             cd ../../
 
-      - name: Change Directory
-        if: inputs.dir != ''
-        run: |
-          cd ${{ inputs.dir }}
-          pwd && ls
-
       - name: npm audit
         if: inputs.audit
-        run: npm audit --audit-level=high --omit=dev
+        run: |
+          if [[ -n "${{ inputs.dir }}" ]]; then
+            cd ${{ inputs.dir }} && pwd
+          fi
+          npm audit --audit-level=high --omit=dev
 
       - name: Install dependencies
         env:
           NPM_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
         run: |
+          if [[ -n "${{ inputs.dir }}" ]]; then
+            cd ${{ inputs.dir }} && pwd
+          fi
           echo -e "\n//dpbuild.jfrog.io/:_authToken=${NPM_TOKEN}" >> .npmrc
           npm ci
 
       - name: Lint
-        run: npm run lint
+        run: |
+          if [[ -n "${{ inputs.dir }}" ]]; then
+            cd ${{ inputs.dir }} && pwd
+          fi
+          npm run lint
 
       - name: Test
-        run: npm run test
+        run: |
+          if [[ -n "${{ inputs.dir }}" ]]; then
+            cd ${{ inputs.dir }} && pwd
+          fi
+          npm run test
