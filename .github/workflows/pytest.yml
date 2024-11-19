@@ -165,11 +165,15 @@ jobs:
             #run_type=$(python -c "import json; import os; import sys; print(json.loads(sys.argv[1])[sys.argv[2].replace('\r', '')]['run_type'])" '${{ inputs.upstream-details }}' $repo)
             #run_id=$(python -c "import json; import os; import sys; print(json.loads(sys.argv[1])[sys.argv[2].replace('\r', '')]['run_id'])" '${{ inputs.upstream-details }}' $repo)
             echo "run_type: $run_type, run_id: $run_id"
-            IFS='-' read -r plat arch <<< "${{ inputs.amalgam-plat-arch }}"
+            IFS='-' read -r plat arch glibc <<< "${{ inputs.amalgam-plat-arch }}"
             if [[ "$repo" == "amalgam" && "${{ github.event.repository.name }}" == "amalgam-lang-py" ]]; then
               # Necessary since a-l-py tests will be run with an editable install of a-l-py
               echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
-              gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}" "$run_id"
+              if [[ "$run_type" == "release" ]]; then
+                gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}.tar.gz" "$run_id"
+              else
+                gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}" "$run_id"
+              fi
               # Extract binaries
               cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
               cp lib/* .
