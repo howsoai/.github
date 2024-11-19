@@ -138,7 +138,8 @@ jobs:
           if [[ "$ID" == "latest" ]]; then
             echo "Getting latest release..."
             # List all releases using GitHub CLI, but get just the latest
-            tags=$(gh release list --repo ${{ inputs.owner }}/${{ inputs.repo }} --limit 1 --json tagName | jq -r '.[].tagName')
+            gh release list 
+            tags=$(gh release list --repo ${{ inputs.owner }}/${{ inputs.repo }} --json tagName,isLatest --jq '.[] | select(.isLatest)|.tagName')
             for tag in $tags; do
                 ID=$tag
             done
