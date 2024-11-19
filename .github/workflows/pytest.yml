@@ -169,7 +169,7 @@ jobs:
             if [[ "$repo" == "amalgam" && "${{ github.event.repository.name }}" == "amalgam-lang-py" ]]; then
               # Necessary since a-l-py tests will be run with an editable install of a-l-py
               echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
-              gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}*" "$run_id"
+              gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}" "$run_id"
               # Extract binaries
               cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
               cp lib/* .
