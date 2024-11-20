@@ -451,13 +451,15 @@ jobs:
           fetch-depth: 0
 
       - name: Get previous git tag
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         id: previous-tag
         run: |
           if [[ ${{ inputs.allow-version-prefix }} == true ]]; then
             prefixed_tag=$(git for-each-ref --sort=-creatordate --count 50 --format="%(refname:short)" "refs/tags/" | grep -E "^[a-z]*-*[0-9]{1,3}\.[0-9]+\.[0-9]+" | head -n 1)
             tag=${prefixed_tag/#version-}
           else
-            tag=$(git for-each-ref --sort=-creatordate --count 50 --format="%(refname:short)" "refs/tags/" | grep -E "^[0-9]{1,3}\.[0-9]+\.[0-9]+" | head -n 1)
+            tag=$(gh release list --json tagName,isLatest --jq '.[] | select(.isLatest)|.tagName')
           fi
           echo "Found tag: $tag"
           echo "tag=$(echo $tag)" >> $GITHUB_OUTPUT
