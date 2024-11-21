@@ -137,8 +137,8 @@ jobs:
           for version in "${arr[@]}"; do
             echo "Installing Python $version"
             # Install Python
-            pyenv install $version.1
-            pyenv local $version.1
+            pyenv install $version
+            pyenv local $version
             python --version
             python -m pip install --upgrade pip
             bash -l
