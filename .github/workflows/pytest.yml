@@ -233,11 +233,13 @@ jobs:
           if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
             echo "Enabling AMALGAM_FAST_MEMORY_INTEGRITY ($AMLG_TYPE)..."
             
-            # Synthesizer and engine recipes have different structures which require custom config file paths
+            # Recipes have different structures which require custom config file paths
             if [[ "${{ github.event.repository.name }}" == "howso-synthesizer-recipes" ]]; then
               export HOWSO_CONFIG=~/work/howso-synthesizer-recipes/howso-synthesizer-recipes/config/latest-$AMLG_TYPE-debug-howso.yml
             elif [[ "${{ github.event.repository.name }}" == "howso-engine-recipes" ]]; then
               export HOWSO_CONFIG=~/work/howso-engine-recipes/howso-engine-recipes/config/latest-$AMLG_TYPE-debug-howso.yml
+            elif [[ "${{ github.event.repository.name }}" == "howso-insights-recipes" ]]; then
+              export HOWSO_CONFIG=~/work/howso-insights-recipes/howso-insights-recipes/config/latest-$AMLG_TYPE-debug-howso.yml
             else
               export HOWSO_CONFIG=./config/latest-$AMLG_TYPE-debug-howso.yml
             fi
