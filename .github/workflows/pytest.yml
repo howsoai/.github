@@ -88,6 +88,11 @@ on:
         description: Run doctests in the provided module
         type: string
         required: false
+      experimental:
+        description: If true, does not fail pipeline if there are test failures.
+        type: boolean
+        required: false
+        default: false
 
 defaults:
   run:
@@ -216,6 +221,7 @@ jobs:
         run: rm -rf ~/AppData/Local/pip/cache
 
       - name: Run unit tests
+        continue-on-error: ${{ inputs.experimental }}
         run: |
           python -m pip install --upgrade pip
           export TEST_OPTIONS=USE_HOWSO_CONFIG
@@ -320,11 +326,14 @@ jobs:
           python -m pytest --doctest-modules ${{ inputs.doctest-modules }} -v
 
       - name: Expand test logs
+        id: expand-test-logs
         if: inputs.cat-logs-from-target
         continue-on-error: true
         run: |
-          ls ${{ matrix.target }}
+          echo "Expanding test logs in current directory and target directory, if they exist..."
+          set +e
           cat ${{ matrix.target }}.txt
+          cat ${{ matrix.target }}/*.txt
 
       - name: Check for skipped tests
         if: ${{ github.event.repository.name == 'howso-engine-py' || github.event.repository.name == 'howso-synthesizer-py' }} 
