@@ -1,0 +1,140 @@
+name: Reusable WF - Run Language Test
+
+on:
+  workflow_call:
+    inputs:
+      test-config:
+        type: string
+        description: 'Filename of the test config'
+        required: true
+      size-postfix:
+        type: string
+        description: Text size postfix, e.g., 100k, 1_0M, 1_5M, etc.
+        required: true 
+      config-fp:
+        type: string
+        description: Path of Howso config file to use
+        required: false
+        default: './config/latest-mt-traces-howso.yml'
+      python-version:
+        type: string
+        description: The Python version to install
+        required: false
+        default: '3.12'
+      upstream-details:
+        type: string
+        description: Upstream metadata
+        required: false
+      telemetry:
+        type: boolean
+        description: Whether to capture workflow telemetry
+        required: false
+        default: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  test:
+    name: Language test (${{ inputs.size-postfix }})
+    runs-on: howso-ubuntu-runner-xlarge-24.04
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Collect Workflow Telemetry
+        if: inputs.telemetry == true
+        uses: catchpoint/workflow-telemetry-action@v2
+        with:
+          comment_on_pr: off
+          proc_trace_chart_show: off
+          proc_trace_table_show: off
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '${{ inputs.python-version }}'
+
+      - name: Download dependencies
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+        run: |
+          pwd
+          while read -r repo; do
+            echo "Getting details for $repo"
+            # Remove carriage return character (Windows issue)
+            repo=$(echo $repo | tr -d '\r')
+            run_type=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_type"')
+            run_id=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_id"')
+            #run_type=$(python -c "import json; import os; import sys; print(json.loads(sys.argv[1])[sys.argv[2].replace('\r', '')]['run_type'])" '${{ inputs.upstream-details }}' $repo)
+            #run_id=$(python -c "import json; import os; import sys; print(json.loads(sys.argv[1])[sys.argv[2].replace('\r', '')]['run_id'])" '${{ inputs.upstream-details }}' $repo)
+            echo "run_type: $run_type, run_id: $run_id"
+            if [[ "$repo" != "amalgam" && "$repo" != "howso-engine" ]]; then
+              gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
+              # Needed because release/non-release downloads are different structure
+              cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+              cd ..
+            fi
+          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
+
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Download dataset from blob storage
+        run: |
+          training_file=$(jq -r '.training_file' "./howso/text/tests/${{ inputs.test-config }}")
+          echo "Downloading $training_file"
+          az storage blob download \
+            --account-name howsopdscentral \
+            --auth-mode login \
+            --container-name wikipedia \
+            --name "tests/$training_file" \
+            --file "./howso/text/tests/$training_file" \
+
+          ls ./howso/text/tests/
+
+      - name: Run test
+        run: |
+          export HOWSO_WIKIPEDIA_CACHE=$(pwd)/howso/text/
+          python -m pip install --upgrade pip
+          export TEST_OPTIONS=USE_HOWSO_CONFIG
+          export HOWSO_CONFIG=${{ inputs.config-fp }}
+          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          fi
+          # Install requirements.txt
+          ./bin/build.sh install_deps ${{ inputs.python-version }}
+          # Install any custom package versions
+          declare -a arr=("howso-watermarker-py" "howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
+          for repo in "${arr[@]}"; do
+            if [ -d "$repo" ]; then
+              echo "Found custom $repo version; installing..."
+              pip uninstall ${repo%-py} -y
+              pip install $repo/*.whl
+            fi
+          done
+          # The below may fail if there are no howso-branded packages installed, i.e., in the case of howso-run-py
+          pip list | grep amalgam || true
+          pip list | grep howso || true
+          pip list | grep numpy || true
+          env | grep HOWSO_CONFIG || true
+          env | grep HOWSO_WIKIPEDIA_CACHE || true
+          echo "Running language tests..."
+
+          howso-text test exec howso/text/tests/${{ inputs.test-config }}
+
+      - name: Expand test results
+        if: always()
+        run: |
+          cat github-runner-annotation.txt
+
+      - name: Upload trace files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'tracesfiles-${{ inputs.size-postfix }}'
+          path: './traces'
