@@ -1,0 +1,95 @@
+name: Reusable WF - Set Version
+
+on:
+  workflow_call:
+    inputs:
+      build-type:
+        description: 'The type of build (e.g., "release" or "rc")'
+        required: true
+        type: string
+    outputs:
+      version:
+        description: 'The version of the build'
+        value: ${{ jobs.set-version.outputs.version }}
+
+
+jobs:
+  set-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full history is fetched for git tags
+
+      - name: List Git Tags
+        run: |
+          pwd
+          git tag
+
+      - name: Get previous git tag
+        id: previous-tag
+        run: |
+          echo "Getting the last semantic version tag"
+          prefixed_tag=$(git tag -l 'version-*' | grep -E '^version-[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+
+          # Fallback if no version tags are found
+          if [ -z "$prefixed_tag" ]; then
+            echo "No version tags found, using 0.0.0 as default"
+            tag="0.0.0"
+          else
+            tag=${prefixed_tag#version-}
+          fi
+
+          echo "Using tag: $tag"
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+
+      - name: Get next semantic versions
+        id: next-semvers
+        uses: WyriHaximus/github-action-next-semvers@v1
+        with:
+          version: ${{ steps.previous-tag.outputs.tag }}
+
+      - name: Determine next version based on commit messages
+        id: set_version
+        run: |
+          # Initialize variables
+          VERSION=""
+          IS_MAJOR_BUMP=false
+          IS_MINOR_BUMP=false
+
+          # Fetch commit messages since the last tag
+          echo "Analyzing commit messages since 'version-${{ steps.previous-tag.outputs.tag }}'..."
+          COMMITS=$(git log --pretty=format:%s version-${{ steps.previous-tag.outputs.tag }}..HEAD)
+
+          # Check for 'MAJOR' or 'MINOR' in commit messages
+          while read -r commit; do
+            if [[ $commit == *"MAJOR"* ]]; then
+              echo "Found MAJOR bump: $commit"
+              IS_MAJOR_BUMP=true
+              break  # Exit loop on major bump
+            elif [[ $commit == *"MINOR"* ]]; then
+              echo "Found MINOR bump: $commit"
+              IS_MINOR_BUMP=true
+            fi
+          done <<< "$COMMITS"
+
+          # Determine the next version
+          if [ "$IS_MAJOR_BUMP" = true ]; then
+            VERSION=${{ steps.next-semvers.outputs.major }}
+          elif [ "$IS_MINOR_BUMP" = true ]; then
+            VERSION=${{ steps.next-semvers.outputs.minor }}
+          else
+            VERSION=${{ steps.next-semvers.outputs.patch }}
+          fi
+
+          # Check if this is a release candidate build
+          if [[ "${{ inputs.build-type }}" == "pr" ]]; then
+            VERSION="${VERSION}-rc"
+            echo "Release candidate build detected, adding -rc suffix"
+          fi
+
+          # Output the new version
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION"
