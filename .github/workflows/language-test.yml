@@ -127,11 +127,6 @@ jobs:
 
           howso-text test exec howso/text/tests/${{ inputs.test-config }}
 
-      - name: Expand test results
-        if: always()
-        run: |
-          cat github-runner-annotation.txt
-
       - name: Upload trace files
         if: always()
         uses: actions/upload-artifact@v4
