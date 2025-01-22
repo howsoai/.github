@@ -22,6 +22,16 @@ on:
         type: boolean
         required: false
         default: false
+      python-versions:
+        description: Space-separated list of Python versions to build requirements for (e.g., "3.9 3.10 3.11")
+        type: string
+        required: false
+        default: "3.9 3.10 3.11 3.12"
+      license-python-version:
+        description: Python version to use for license generation
+        type: string
+        required: false
+        default: "3.12"
 
 jobs:
   check-requirements:
@@ -133,8 +143,8 @@ jobs:
           command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
           eval "$(pyenv init -)"
           # Compile requirements
-          declare -a arr=("3.9" "3.10" "3.11" "3.12")
-          for version in "${arr[@]}"; do
+          IFS=' ' read -r -a versions <<< "${{ inputs.python-versions }}"
+          for version in "${versions[@]}"; do
             echo "Installing Python $version"
             # Install Python
             pyenv install $version
@@ -189,8 +199,8 @@ jobs:
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
           fi
-          if [[ -e "requirements-3.12.txt" ]]; then
-            pip install -r requirements-3.12.txt --no-deps
+          if [[ -e "requirements-${{ inputs.license-python-version }}.txt" ]]; then
+            pip install -r requirements-${{ inputs.license-python-version }}.txt --no-deps
           else
             echo "No main requirements.txt file found."
             exit 0
