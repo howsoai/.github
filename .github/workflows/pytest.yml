@@ -126,12 +126,16 @@ jobs:
         env:
           cache-name: dataset-cache-${{ inputs.platform-pretty }}
         with:
-          path: ~/dataset_cache
+          path: '~/dataset_cache'
           key: dataset-cache-${{ inputs.platform-pretty }}
       
       - name: Setup PMLB Cache
         if: inputs.pmlb-cache == true
         run: |
+          if [[ "${{  inputs.platform-pretty }}" == "Windows" ]]; then
+            pwd
+            ls -l
+          fi
           ls -l ~/dataset_cache
           mv ~/dataset_cache/dataset_cache.tar.gz dataset_cache.tar.gz && rm -rf dataset-cache
           tar xzvf dataset_cache.tar.gz
