@@ -93,6 +93,11 @@ on:
         type: boolean
         required: false
         default: false
+      enable-spark:
+        description: If true, sets up an Apache Spark cluster in the current environment.
+        type: boolean
+        required: false
+        default: false
 
 defaults:
   run:
@@ -159,6 +164,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
+
+      - uses: actions/setup-java@v4
+        if: inputs.enable-spark == true
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - uses: vemonet/setup-spark@v1
+        if: inputs.enable-spark == true
+        with:
+          spark-version: '3.5.3'
+          hadoop-version: '3'
+      
+      - name: Check Spark version
+        if: inputs.enable-spark == true
+        run: spark-submit --version
 
       - name: Download dependencies
         env:
