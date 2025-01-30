@@ -100,6 +100,7 @@ jobs:
       - name: Run test
         run: |
           export HOWSO_WIKIPEDIA_CACHE=$(pwd)/howso/text/
+          export HOWSO_CACHE=$(pwd)/howso/text/
           python -m pip install --upgrade pip
           export TEST_OPTIONS=USE_HOWSO_CONFIG
           export HOWSO_CONFIG=${{ inputs.config-fp }}
@@ -122,7 +123,7 @@ jobs:
           pip list | grep howso || true
           pip list | grep numpy || true
           env | grep HOWSO_CONFIG || true
-          env | grep HOWSO_WIKIPEDIA_CACHE || true
+          env | grep HOWSO_CACHE || true
           echo "Running language tests..."
 
           howso-text test exec howso/text/tests/${{ inputs.test-config }}
