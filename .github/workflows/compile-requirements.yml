@@ -32,6 +32,11 @@ on:
         type: string
         required: false
         default: "3.12"
+      regen-docs:
+        description: For insights-llm repo. Runs `extract_docstrings.py`.
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   check-requirements:
@@ -210,6 +215,12 @@ jobs:
           pip install pip-licenses
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
 
+      - name: Regen docs
+        if: inputs.regen-docs == true
+        run: |
+          python --version
+          python extract_docstrings.py
+
       - name: Commit changes
         id: commit-changes
         run: |
@@ -219,6 +230,9 @@ jobs:
             git config user.name "howso-automation"
             git config user.email "support@howso.com"
             git add *.txt
+            if [[ "${{ inputs.regen-docs }}" == "true" ]]; then
+              git add main/docstrings/*.json
+            fi
             git commit -m "Automated requirements/license generation"
             git push
           else
