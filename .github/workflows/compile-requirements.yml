@@ -66,6 +66,9 @@ jobs:
             if [ -e "requirements-dev.in" ]; then
               dev_req_file="requirements-dev.in"
             fi
+          else
+            echo "No requirements.in or pyproject.toml found!"
+            exit 1
           fi
 
           # Warn if setup.py is used (should migrate to pyproject.toml)
