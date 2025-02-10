@@ -322,6 +322,7 @@ jobs:
           # Debug mode
           if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
             # Run GDB in batch mode and capture the output
+            sudo apt-get update
             sudo apt-get install -y gdb
             echo "GDB installation complete"
             set +e
