@@ -208,7 +208,7 @@ jobs:
             export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
           fi
           if [[ -e "requirements-${{ inputs.license-python-version }}.txt" ]]; then
-            pip install -r requirements-${{ inputs.license-python-version }}.txt --no-deps
+            python -m pip install -r requirements-${{ inputs.license-python-version }}.txt --no-deps
           else
             echo "No main requirements.txt file found."
             exit 0
