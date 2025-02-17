@@ -39,8 +39,6 @@ jobs:
 
   test:
     name: Language test (${{ inputs.size-postfix }})
-    permissions:
-      actions: read
     runs-on: howso-ubuntu-runner-xlarge-24.04
     steps:
 
