@@ -98,6 +98,10 @@ on:
         type: boolean
         required: false
         default: false
+      results-summary-paths:
+        description: Path(s) of markdown test summaries to upload as build artifacts, as a JSON list
+        type: string
+        required: false
 
 defaults:
   run:
@@ -299,14 +303,21 @@ jobs:
           # Install requirements.txt
           ./bin/build.sh install_deps ${{ inputs.python-version }}
           # Install any custom package versions
-          declare -a arr=("howso-watermarker-py" "howso-validator-enterprise-py" "howso-validator-py" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
-          for repo in "${arr[@]}"; do
-            if [ -d "$repo" ]; then
+          echo "Installing custom packages..."
+          while read -r repo; do
+            set +e
+            repo=$(echo "$repo" | tr -d '\r')  # Remove carriage return
+            echo "Analyzing $repo for installable .whl files..."
+            count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
+            ls $repo
+            echo "Found count: $count"
+            if [[ $count != 0 && "$count" != "" ]]; then
               echo "Found custom $repo version; installing..."
               pip uninstall ${repo%-py} -y
-              pip install $repo/*.whl
+              pip install $repo/*.whl --no-deps
             fi
-          done
+            set -e
+          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
           # The below may fail if there are no howso-branded packages installed, i.e., in the case of howso-run-py
           pip list | grep amalgam || true
           pip list | grep howso || true
@@ -360,6 +371,18 @@ jobs:
           set +e
           cat ${{ matrix.target }}.txt
           cat ${{ matrix.target }}/*.txt
+
+      - name: Upload results summary
+        id: upload-results-summary
+        if: inputs.results-summary-paths != ''
+        continue-on-error: true
+        run: |
+          files=$(echo '${{ inputs.results-summary-paths }}' | jq -r '.[]')
+          for file in $files; do
+            cat $file
+            echo -e "\n\n---\n\n" >> $GITHUB_STEP_SUMMARY
+            cat "$file" >> $GITHUB_STEP_SUMMARY
+          done
 
       - name: Check for skipped tests
         if: ${{ github.event.repository.name == 'howso-engine-py' || github.event.repository.name == 'howso-synthesizer-py' }} 
