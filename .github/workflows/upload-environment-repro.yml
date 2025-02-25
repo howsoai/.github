@@ -1,0 +1,33 @@
+name: Reusable WF - Upload Environment Reproduction Script
+
+on:
+  workflow_call:
+    inputs:
+      upstream-details:
+        type: string
+        required: true
+
+jobs:
+
+  upload-env-repro-script:
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+          ref: ${{ github.head_ref }}
+          repository: howsoai/.github
+
+      - name: Configure artifacts
+        run: |
+          mkdir -p out/env-repro
+          echo '${{ inputs.upstream-details }}' > out/env-repro
+          cp workflow-templates/env-repro/README.md out/env-repro
+          cp workflow-templates/env-repro/setup.sh out/env-repro
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: env-repro
+          path: out
