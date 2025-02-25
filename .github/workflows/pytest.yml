@@ -349,7 +349,7 @@ jobs:
 
       - name: Upload results summary
         id: upload-results-summary
-        if: inputs.results-summary-paths != ''
+        if: inputs.results-summary-paths != '' && always()
         continue-on-error: true
         run: |
           files=$(echo '${{ inputs.results-summary-paths }}' | jq -r '.[]')
