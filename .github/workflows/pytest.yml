@@ -60,10 +60,6 @@ on:
         description: Additional Pytest args, such as a marker specification
         type: string
         required: false
-      test-results-upload:
-        description: Whether to upload JUnit test results XML
-        type: boolean
-        default: true
       traces-fp:
         description: Path of Amalgam trace files
         type: string
@@ -74,11 +70,6 @@ on:
         type: boolean
         default: true
         required: false
-      cat-logs-from-target:
-        description: Whether to print the contents of {target}.txt
-        type: boolean
-        required: false
-        default: false
       debug:
         description: Run Pytest with GDB and print a stacktrace (LINUX ONLY!)
         type: boolean
@@ -88,11 +79,6 @@ on:
         description: Run doctests in the provided module
         type: string
         required: false
-      experimental:
-        description: If true, does not fail pipeline if there are test failures.
-        type: boolean
-        required: false
-        default: false
       enable-spark:
         description: If true, sets up an Apache Spark cluster in the current environment.
         type: boolean
@@ -250,7 +236,6 @@ jobs:
         run: rm -rf ~/AppData/Local/pip/cache
 
       - name: Run unit tests
-        continue-on-error: ${{ inputs.experimental }}
         run: |
           python -m pip install --upgrade pip
           export TEST_OPTIONS=USE_HOWSO_CONFIG
@@ -352,25 +337,15 @@ jobs:
 
           # Run unit tests (non-debug)
           if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest -s ${{ inputs.extra-args }} ${{ matrix.target }} --junitxml=junit/test-results.xml
+            python -m pytest -s ${{ inputs.extra-args }} ${{ matrix.target }}
           else
-            python -m pytest -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }} --junitxml=junit/test-results.xml
+            python -m pytest -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}
           fi
 
       - name: Run doctests
         if: inputs.doctest-modules != ''
         run: |
           python -m pytest --doctest-modules ${{ inputs.doctest-modules }} -v
-
-      - name: Expand test logs
-        id: expand-test-logs
-        if: inputs.cat-logs-from-target
-        continue-on-error: true
-        run: |
-          echo "Expanding test logs in current directory and target directory, if they exist..."
-          set +e
-          cat ${{ matrix.target }}.txt
-          cat ${{ matrix.target }}/*.txt
 
       - name: Upload results summary
         id: upload-results-summary
@@ -395,37 +370,8 @@ jobs:
 
       - name: Upload trace files
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
           path: ${{ inputs.traces-fp }}
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: "test-results-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
-          path: junit/test-results.xml
-          overwrite: true
-  
-  upload-test-results:
-    needs: ['test']
-    if: inputs.test-results-upload == true && ! inputs.debug
-    permissions:
-      contents: read
-      issues: read
-      checks: write
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./tmp
-          name: "test-results-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
-
-      - name: Upload test results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: './tmp/test-results.xml'

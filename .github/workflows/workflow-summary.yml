@@ -227,10 +227,3 @@ jobs:
           sed -i "s|\"||g" ./.github/templates/version_summary.md
           # Output filled template file to workflow summary
           cat ./.github/templates/version_summary.md >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload version summary
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: "workflow-summary"
-          path: ./.github/templates/version_summary.md
