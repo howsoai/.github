@@ -22,7 +22,7 @@ jobs:
       - name: Configure artifacts
         run: |
           mkdir -p out/env-repro
-          echo '${{ inputs.upstream-details }}' > out/env-repro
+          echo '${{ inputs.upstream-details }}' > out/env-repro/dependency-details.json
           cp workflow-templates/env-repro/README.md out/env-repro
           cp workflow-templates/env-repro/setup.sh out/env-repro
 
