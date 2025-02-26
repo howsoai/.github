@@ -1,14 +1,25 @@
 #!/bin/bash
 
+# Whether to install custom deps or simply store them
+# Set by user prompt
+noinstall=false
+# Directory to store custom steps if noinstall==1
+dep_dir="howso-custom-deps"
+
 # Function to install downloaded dependencies and others in requiremnts.txt
 install_deps() {
-    echo "Installing downloaded Howso Python dependencies..."
 
-    # Extract major.minor version from Python version
-    python_major_minor="$(echo "${1}" | awk -F. '{print $1 "." $2}')"
-    echo "Installing dependencies for Python $python_major_minor..."
+    if [ $noinstall = true ]; then
+        echo "Moving downloaded .whl files to $dep_dir"
+    else
+        echo "Installing downloaded Howso Python dependencies..."
 
-    ./bin/build.sh install_deps $python_major_minor
+        # Extract major.minor version from Python version
+        python_major_minor="$(echo "${1}" | awk -F. '{print $1 "." $2}')"
+        echo "Installing dependencies for Python $python_major_minor..."
+
+        ./bin/build.sh install_deps $python_major_minor nouserinstall
+    fi
 
     # Install custom Howso dependencies
     for repo in $(jq -r 'keys[]' "./env-repro/dependency-details.json"); do
@@ -16,16 +27,25 @@ install_deps() {
         count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
         ls $repo
         if [[ $count != 0 && "$count" != "" ]]; then
-            echo "Found custom $repo version; installing..."
-            pip uninstall ${repo%-py} -y
-            pip install $repo/*.whl --no-deps
+            if [ $noinstall = true ]; then
+                echo "Found custom $repo version; transferring..."
+                mv $repo/*.whl $dep_dir
+            else
+                echo "Found custom $repo version; installing..."
+                pip uninstall ${repo%-py} -y
+                pip install $repo/*.whl --no-deps
+            fi
         fi
         # Clean up leftover directory
         rm -rf $repo
     done
 
-    pip list | grep amalgam || true
-    pip list | grep howso || true
+    if [ $noinstall = true ]; then
+        ls -l $dep_dir
+    else
+        pip list | grep amalgam || true
+        pip list | grep howso || true
+    fi
 }
 
 # Function to determine CPU architecture
@@ -46,11 +66,10 @@ download_artifacts() {
     plat="$(uname -s | tr '[:upper:]' '[:lower:]')"
     arch="$(detect_arch)"
     for repo in $(jq -r 'keys[]' "./env-repro/dependency-details.json"); do
-        echo "Downloading custom $repo..."
-        run_type=$(jq -r --arg repo "$repo" '.[$repo]."run_type"')
-        run_id=$(jq -r --arg repo "$repo" '.[$repo]."run_id"')
-        plat=""
-        arch=""
+        echo "Evaluating custom $repo..."
+        run_type=$(jq -r --arg repo "$repo" '.[$repo]."run_type"' "./env-repro/dependency-details.json")
+        run_id=$(jq -r --arg repo "$repo" '.[$repo]."run_id"' "./env-repro/dependency-details.json")
+        echo "Got run_type=$run_type, run_id=$run_id"
         if [[ "$repo" == "amalgam" && "$(basename $PWD)" == "amalgam-lang-py" ]]; then
             read -p "To reproduce the CI/CD environment, I must replace the Amalgam binaries in ./amalgam/lib/$plat/$arch. Proceed? (y/n): " proceed
             if [[ ! "$proceed" =~ ^[Yy]$ ]]; then
@@ -85,12 +104,11 @@ download_artifacts() {
             rm *.tar.gz
             cd ../..
         elif [[ "$repo" != "amalgam" && "$repo" != "howso-engine" ]]; then
+            echo "Downloading..."
             gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
             # Needed because release/non-release downloads are different structure
-            cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+            cd $repo && if [[ "$run_type" == "run" ]]; then mv */*.whl ./; fi
             cd ..
-            # Clean up downloaded directory
-            rm -rf $repo
         fi
     done
 }
@@ -152,21 +170,11 @@ if [[ "$create_venv" =~ ^[Yy]$ ]]; then
     
     # Create the virtual environment
     pyenv virtualenv "$python_version" "$env_name"
-    # Ensure user can do --user pip installs
-    venv_path="$(pyenv root)/versions/$env_name"
-    cfg_file="$venv_path/pyvenv.cfg"
-    if [[ -f "$cfg_file" ]]; then
-        sed -i '' -e 's/include-system-site-packages = .*/include-system-site-packages = true/' "$cfg_file"
-        echo "Updated $cfg_file to allow --user pip installs."
-        pyenv deactivate
-        pyenv activate "$env_name"
-        echo "Reactivated virtual environment."
-    fi
     echo "Virtual environment '$env_name' created successfully. Setting local environment..."
     pyenv local $env_name
 else
     # Create dependency directory
-    dep_dir="howso-custom-deps"
+    noinstall=true
     mkdir -p "$dep_dir"
     echo "Dependencies will be installed in '$dep_dir'."
 fi
@@ -178,4 +186,8 @@ download_artifacts
 
 install_deps $python_version
 
-echo "Success! Your virtual Python environment should now mirror that in which this script was generated."
+if [ $noinstall = true ]; then
+    echo -e "\n\nAll custom artifacts downloaded to $dep_dir. Please first `pip install` the appropriate `requirements.txt` file, then install the custom Howso packages manually with `--no-deps`."
+else
+    echo -e "\n\nSuccess! Your virtual Python environment should now mirror that in which this script was generated."
+fi

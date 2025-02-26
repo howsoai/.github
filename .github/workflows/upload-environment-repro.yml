@@ -16,7 +16,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
-          ref: ${{ github.head_ref }}
           repository: howsoai/.github
 
       - name: Configure artifacts
