@@ -68,7 +68,7 @@ on:
       telemetry:
         description: Whether to capture workflow telemetry
         type: boolean
-        default: true
+        default: false
         required: false
       debug:
         description: Run Pytest with GDB and print a stacktrace (LINUX ONLY!)
