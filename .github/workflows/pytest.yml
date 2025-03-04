@@ -84,6 +84,11 @@ on:
         type: boolean
         required: false
         default: false
+      enable-postgres:
+        description: If true, sets up a Postgres container in the current environment.
+        type: boolean
+        required: false
+        default: false
       results-summary-paths:
         description: Path(s) of markdown test summaries to upload as build artifacts, as a JSON list
         type: string
@@ -166,10 +171,21 @@ jobs:
         with:
           spark-version: '3.5.3'
           hadoop-version: '3'
-      
-      - name: Check Spark version
-        if: inputs.enable-spark == true
-        run: spark-submit --version
+
+      - name: Enable Postgres
+        if: inputs.enable-postgres == true
+        run: |
+          docker run -d \
+            --name postgres \
+            -e POSTGRES_USER="postgres" \
+            -e POSTGRES_PASSWORD="postgres" \
+            -e POSTGRES_DB="insights-llm-app" \
+            -e POSTGRES_HOST="0.0.0.0"
+            -p 5432:5432 \
+            postgres:alpine
+
+          # Also configure Alembic
+          alembic upgrade head
 
       - name: Download dependencies
         env:

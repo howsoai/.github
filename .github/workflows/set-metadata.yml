@@ -21,6 +21,9 @@ on:
       howso-engine-py-build:
         required: false
         type: string
+      howso-insights-build:
+        required: false
+        type: string
       howso-synthesizer-py-build:
         required: false
         type: string
@@ -148,6 +151,17 @@ jobs:
     with:
       owner: "howsoai"
       repo: "howso-watermarker-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
+
+  get-howso-insights-details:
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-insights"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
       checkout-repo: ${{ inputs.checkout-repos }}
@@ -284,6 +298,14 @@ jobs:
               "build_title": "${{ needs.get-howso-validator-py-details.outputs.build-title }}",
               "head_sha": "${{ needs.get-howso-validator-py-details.outputs.head-sha }}",
               "url": "${{ needs.get-howso-validator-py-details.outputs.url }}"
+            },
+            "howso-insights": {
+              "run_id": "${{ needs.get-howso-insights-details.outputs.run-id }}",
+              "run_type": "${{ needs.get-howso-insights-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-insights-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-insights-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-insights-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-insights-details.outputs.url }}"
             }
           }
           EOF
