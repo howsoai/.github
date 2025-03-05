@@ -37,6 +37,11 @@ on:
         type: boolean
         required: false
         default: false
+      build-system:
+        description: The build system specified in pyproject.toml (affecting requirements generation) [e.g., use "hatch" for Hatch]
+        type: string
+        required: false
+        default: "setuptools"
 
 jobs:
   check-requirements:
@@ -134,8 +139,9 @@ jobs:
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
           ref: ${{ inputs.branch }}
 
-      - name: Compile requirements
-        id: compile-requirements
+      - name: Compile requirements (setuptools)
+        if: inputs.build-system == 'setuptools'
+        id: compile-requirements-setuptools
         run: |
           # Pull latest changes
           git pull
@@ -195,8 +201,8 @@ jobs:
             fi
           done
 
-      - name: Generate third-party licenses
-        id: gen-licenses
+      - name: Generate third-party licenses (setuptools)
+        id: gen-licenses-setuptools
         run: |
           which python
           eval "$(pyenv init -)"
@@ -217,6 +223,49 @@ jobs:
           pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
           pip install pip-licenses
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
+
+      - name: Set up Python
+        if: inputs.build-system == 'hatch'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile requirements (hatch)
+        if: inputs.build-system == 'hatch'
+        id: compile-requirements-hatch
+        run: |
+          # Pull latest changes
+          git pull
+          # Install Hatch
+          pip install hatch
+          # Set extra index URL
+          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL="https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
+          fi
+          # Install pip-tools
+          pip install -U pip-tools
+          # Compile requirements
+          hatch run freeze:freeze 
+
+      - name: Generate third-party licenses (hatch)
+        if: inputs.build-system == 'hatch'
+        id: gen-licenses-hatch
+        run: |
+          rm -f ./LICENSE-3RD-PARTY.txt
+          # Set extra index URL
+          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL="https://vsts-build%40diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
+          fi
+          if [[ -e "requirements-${{ inputs.license-python-version }}.txt" ]]; then
+            python -m pip install -r requirements-${{ inputs.license-python-version }}.txt --no-deps
+          else
+            echo "No main requirements.txt file found."
+            exit 0
+          fi
+          # Do not include Howso software in the 3rd party license file
+          pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
+          pip install pip-licenses
+          hatch run licenses:licenses
 
       - name: Regen docs
         if: inputs.regen-docs == true
