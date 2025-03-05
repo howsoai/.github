@@ -185,7 +185,8 @@ jobs:
             postgres:alpine
 
           # Also configure Alembic
-          alembic upgrade head
+
+          ENVIRONMENT='test' alembic upgrade head
 
       - name: Download dependencies
         env:
@@ -251,10 +252,58 @@ jobs:
         shell: bash
         run: rm -rf ~/AppData/Local/pip/cache
 
+      - name: Install dependencies
+        run: |
+          # Upgrade Pip to latest version
+          python -m pip install --upgrade pip
+
+          # Install requirements.txt
+          ./bin/build.sh install_deps ${{ inputs.python-version }}
+
+          # Install any custom package versions
+          echo "Installing custom packages..."
+          while read -r repo; do
+            set +e
+            repo=$(echo "$repo" | tr -d '\r')  # Remove carriage return
+            echo "Analyzing $repo for installable .whl files..."
+            count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
+            ls $repo
+            echo "Found count: $count"
+            if [[ $count != 0 && "$count" != "" ]]; then
+              echo "Found custom $repo version; installing..."
+              pip uninstall ${repo%-py} -y
+              pip install $repo/*.whl --no-deps
+            fi
+            set -e
+          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
+
+          # Print dependency versions to terminal
+          pip list | grep amalgam || true
+          pip list | grep howso || true
+          pip list | grep numpy || true
+          env | grep HOWSO_CONFIG || true
+
+          # If the platform is Windows, specify UTF8 enconding as it may not be on by default
+          if [[ ${{ inputs.enable-utf8}} == true ]]; then
+            export PYTHONUTF8=1
+          fi
+
       - name: Run unit tests
         run: |
-          python -m pip install --upgrade pip
+          # Set Howso environment variables
           export TEST_OPTIONS=USE_HOWSO_CONFIG
+          if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
+            export ENVIRONMENT='test'
+            if [[ -e .env ]]; then
+              echo "Sourcing environment variables from .env"
+              source .env
+            elif [[ -e .env.sample ]]; then
+              echo "Sourcing environment variables from .env.sample"
+              source .env.sample
+            else
+              echo "No .env or .env.sample found for Postgres config; proceed with caution"
+            fi
+          fi
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
@@ -290,6 +339,7 @@ jobs:
           else
             export AMALGAM_LIBRARY_POSTFIX="-st"
           fi
+
           # Set AWS credentials, if applicable
           if [[ "${{ secrets.AWS_TEST_RW_USERNAME }}" ]]; then
             echo "Setting AWS secrets..."
@@ -297,41 +347,10 @@ jobs:
             export AWS_TEST_RW_ACCESSKEY=${{ secrets.AWS_TEST_RW_ACCESSKEY }}
             export AWS_TEST_RW_ACCESSKEYSECRET=${{ secrets.AWS_TEST_RW_ACCESSKEYSECRET }}
           fi
-          ## If running on Windows, use the full path (19201)
-          #if [[ "${{ inputs.platform-pretty }}" == "Windows" ]]; then
-          #  sed -i "s|pip|C:\hostedtoolcache\windows\Python\${{ inputs.python-version }}.*\x64\python.exe|g" ./bin/build.sh
-          #fi
-          # Install requirements.txt
-          ./bin/build.sh install_deps ${{ inputs.python-version }}
-          # Install any custom package versions
-          echo "Installing custom packages..."
-          while read -r repo; do
-            set +e
-            repo=$(echo "$repo" | tr -d '\r')  # Remove carriage return
-            echo "Analyzing $repo for installable .whl files..."
-            count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
-            ls $repo
-            echo "Found count: $count"
-            if [[ $count != 0 && "$count" != "" ]]; then
-              echo "Found custom $repo version; installing..."
-              pip uninstall ${repo%-py} -y
-              pip install $repo/*.whl --no-deps
-            fi
-            set -e
-          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
-          # The below may fail if there are no howso-branded packages installed, i.e., in the case of howso-run-py
-          pip list | grep amalgam || true
-          pip list | grep howso || true
-          pip list | grep numpy || true
-          env | grep HOWSO_CONFIG || true
+
           echo "Running pytests..."
 
-          # If the platform is Windows, specify UTF8 enconding as it may not be on by default
-          if [[ ${{ inputs.enable-utf8}} == true ]]; then
-            export PYTHONUTF8=1
-          fi
-
-          # Debug mode
+          # Run tests in debug mode
           if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
             # Run GDB in batch mode and capture the output
             sudo apt-get update
