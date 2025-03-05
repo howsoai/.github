@@ -175,18 +175,16 @@ jobs:
       - name: Enable Postgres
         if: inputs.enable-postgres == true
         run: |
-          docker run -d \
-            --name postgres \
-            -e POSTGRES_USER="postgres" \
-            -e POSTGRES_PASSWORD="postgres" \
-            -e POSTGRES_DB="insights-llm-app" \
-            -e POSTGRES_HOST="0.0.0.0"
-            -p 5432:5432 \
-            postgres:alpine
-
-          # Also configure Alembic
-
-          ENVIRONMENT='test' alembic upgrade head
+          set -a
+          if [[ -e .env ]]; then
+            docker run --name postgres --env-file .env -p 5432:5432 -d postgres:latest
+          elif [[ -e .env.sample ]]; then
+            docker run --name postgres --env-file .env.sample -p 5432:5432 -d postgres:latest
+          else
+            echo "No .env or .env.sample found"
+            exit 1
+          fi
+          set +a
 
       - name: Download dependencies
         env:
@@ -257,6 +255,11 @@ jobs:
           # Upgrade Pip to latest version
           python -m pip install --upgrade pip
 
+          # Set Pip extra index URL
+          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          fi
+
           # Install requirements.txt
           ./bin/build.sh install_deps ${{ inputs.python-version }}
 
@@ -294,6 +297,7 @@ jobs:
           export TEST_OPTIONS=USE_HOWSO_CONFIG
           if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
             export ENVIRONMENT='test'
+            set -a
             if [[ -e .env ]]; then
               echo "Sourcing environment variables from .env"
               source .env
@@ -303,6 +307,8 @@ jobs:
             else
               echo "No .env or .env.sample found for Postgres config; proceed with caution"
             fi
+            set +a
+            env | grep POSTGRES
           fi
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
@@ -368,6 +374,10 @@ jobs:
             else
               exit 1
             fi
+          fi
+
+          if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
+            alembic upgrade head
           fi
 
           # Run unit tests (non-debug)
