@@ -93,6 +93,11 @@ on:
         description: Path(s) of markdown test summaries to upload as build artifacts, as a JSON list
         type: string
         required: false
+      gen-rsa-keys:
+        description: Generate public/private RSA key pairs and save to .public_key/.private_key files and ACCESS_TOKEN_[PUBLIC|PRIVATE]_KEY env vars
+        type: boolean
+        required: false
+        default: false
 
 defaults:
   run:
@@ -286,6 +291,12 @@ jobs:
           pip list | grep numpy || true
           env | grep HOWSO_CONFIG || true
 
+      - name: Generate RSA keys
+        if: inputs.gen-rsa-keys
+        run: |
+          openssl genrsa 1024 > ./private_key
+          cat ./private_key | sed -e 's/^[ ]\*//' | openssl rsa -pubout > ./public_key
+
       - name: Run unit tests
         run: |
           # Set Howso environment variables
@@ -293,6 +304,13 @@ jobs:
           # If the platform is Windows, specify UTF8 enconding as it may not be on by default
           if [[ ${{ inputs.enable-utf8}} == true ]]; then
             export PYTHONUTF8=1
+          fi
+
+          # Set access token environment variables if specified
+          if [[ ${{ inputs.gen-rsa-keys }} == true ]]; then
+            echo "Setting ACCESS_TOKEN_[PUBLIC|PRIVATE]_KEYS..."
+            export ACCESS_TOKEN_PUBLIC_KEY=$(cat ./public_key)
+            export ACCESS_TOKEN_PRIVATE_KEY=$(cat ./private_key)
           fi
 
           export TEST_OPTIONS=USE_HOWSO_CONFIG
