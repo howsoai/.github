@@ -109,7 +109,8 @@ jobs:
           "howso-engine-py": "${{ inputs.howso-engine-py-build }}",
           "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
           "howso-watermarker-py": "${{ inputs.howso-watermarker-py-build }}",
-          "howso-validator-py": "${{ inputs.howso-validator-py-build }}"
+          "howso-validator-py": "${{ inputs.howso-validator-py-build }}",
+          "howso-insights": "${{ inputs.howso-insights-build }}"
         }
         EOF
         )
@@ -228,6 +229,7 @@ jobs:
       - get-howso-validator-py-details
       - get-howso-synthesizer-py-details
       - get-howso-watermarker-py-details
+      - get-howso-insights-details
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}

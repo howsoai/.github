@@ -57,8 +57,8 @@ jobs:
           pip download -r requirements-3.11.txt -d ./dist || true
           # Remove upstream Howso packages since we don't want these to be scanned
           # Also omit jupyter_core and jupyter_client because JFrog does not correctly determine their licenses
-          pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
-          declare -a arr=("amalgam_lang" "howso_engine" "howso_synthesizer" "howso_validator" "howso_validator_enterprise" "howso_visuals" "howso_openapi_client" "jupyter_core" "jupyter_client")
+          pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-visuals howso-insights howso-openapi-client -y
+          declare -a arr=("amalgam_lang" "howso_engine" "howso_synthesizer" "howso_validator" "howso_visuals" "howso-insights" "howso_openapi_client" "jupyter_core" "jupyter_client")
           for PKG in "${arr[@]}"; do
             rm -f ./dist/$PKG*
           done
