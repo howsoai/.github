@@ -286,14 +286,15 @@ jobs:
           pip list | grep numpy || true
           env | grep HOWSO_CONFIG || true
 
+      - name: Run unit tests
+        run: |
+          # Set Howso environment variables
+
           # If the platform is Windows, specify UTF8 enconding as it may not be on by default
           if [[ ${{ inputs.enable-utf8}} == true ]]; then
             export PYTHONUTF8=1
           fi
 
-      - name: Run unit tests
-        run: |
-          # Set Howso environment variables
           export TEST_OPTIONS=USE_HOWSO_CONFIG
           if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
             export ENVIRONMENT='test'
