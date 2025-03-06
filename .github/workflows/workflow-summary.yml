@@ -184,7 +184,8 @@ jobs:
           sed -i "s|{howso-engine-url}|$hse_url|g" ./.github/templates/version_summary.md
 
           # Get Howso Python package metadata from workflow run or release install
-          for repo in "${arr[@]}"; do
+          while read -r repo; do
+          repo=$(echo "$repo" | tr -d '\r')  # Remove carriage return
           pkg_version=$(python -c "
           import importlib.metadata
           try:
@@ -223,7 +224,7 @@ jobs:
             sed -i "s|{$repo-notes}|$pkg_notes|g" ./.github/templates/version_summary.md
             sed -i "s|{$repo-sha}|$pkg_sha|g" ./.github/templates/version_summary.md
             sed -i "s|{$repo-url}|$pkg_url|g" ./.github/templates/version_summary.md
-          done
+          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
 
           # Add benchmarker config info
           if [[ -n "${{ inputs.benchmarker-config }}" ]]; then
