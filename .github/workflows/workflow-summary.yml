@@ -184,8 +184,9 @@ jobs:
           sed -i "s|{howso-engine-url}|$hse_url|g" ./.github/templates/version_summary.md
 
           # Get Howso Python package metadata from workflow run or release install
-          while read -r repo; do
-          repo=$(echo "$repo" | tr -d '\r')  # Remove carriage return
+          # This list has to be hard-coded because we need info about all Howso packages, even if they are not in upstream-details
+          declare -a arr=("howso-watermarker-py" "howso-validator-enterprise-py" "howso-validator-py" "howso-insights" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
+          for repo in "${arr[@]}"; do
           pkg_version=$(python -c "
           import importlib.metadata
           try:
@@ -224,7 +225,7 @@ jobs:
             sed -i "s|{$repo-notes}|$pkg_notes|g" ./.github/templates/version_summary.md
             sed -i "s|{$repo-sha}|$pkg_sha|g" ./.github/templates/version_summary.md
             sed -i "s|{$repo-url}|$pkg_url|g" ./.github/templates/version_summary.md
-          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
+          done
 
           # Add benchmarker config info
           if [[ -n "${{ inputs.benchmarker-config }}" ]]; then
