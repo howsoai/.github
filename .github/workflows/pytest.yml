@@ -401,9 +401,9 @@ jobs:
 
           # Run unit tests (non-debug)
           if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest -s ${{ inputs.extra-args }} ${{ matrix.target }}
+            python -m pytest -s ${{ inputs.extra-args }} ${{ matrix.target }}  --junitxml=junit/test-results.xml
           else
-            python -m pytest -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}
+            python -m pytest -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  --junitxml=junit/test-results.xml
           fi
 
       - name: Run doctests
