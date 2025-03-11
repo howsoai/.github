@@ -266,6 +266,7 @@ jobs:
           pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
           pip install pip-licenses
           hatch run licenses:licenses
+          sed -i 's/^[^ ]*\/site-packages\///' LICENSE-3RD-PARTY.txt
 
       - name: Regen docs
         if: inputs.regen-docs == true
