@@ -98,6 +98,10 @@ on:
         type: boolean
         required: false
         default: false
+      setup-script:
+        description: Optional Python script to run before running unit tests
+        type: string
+        required: false
 
 defaults:
   run:
@@ -373,6 +377,15 @@ jobs:
             export AWS_TEST_RW_ACCESSKEYSECRET=${{ secrets.AWS_TEST_RW_ACCESSKEYSECRET }}
           fi
 
+          if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
+            alembic upgrade head
+          fi
+
+          if [[ "${{ inputs.setup_script }}" != "" ]]; then
+              # Run optional pre-test setup if provided
+              python ${{ inputs.setup_script }}
+          fi
+
           echo "Running pytests..."
 
           # Run tests in debug mode
@@ -393,10 +406,6 @@ jobs:
             else
               exit 1
             fi
-          fi
-
-          if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
-            alembic upgrade head
           fi
 
           # Run unit tests (non-debug)
@@ -427,6 +436,9 @@ jobs:
         if: ${{ github.event.repository.name == 'howso-engine-py' || github.event.repository.name == 'howso-synthesizer-py' }} 
         continue-on-error: true
         run: |
+          if not [[ -e "junit/test-results.xml" ]]; then
+            exit 0
+          fi
           SKIPPED=$(sed -n 's/.*skipped="\([0-9]\{1,\}\)".*/\1/p' junit/test-results.xml)
           if [[ "$SKIPPED" != "0" ]]; then
             echo "::warning title=Skipped Tests::[${{ inputs.python-version }}/${{inputs.platform-pretty}}/${{ inputs.config-pretty }}] This workflow run included ${SKIPPED} skipped tests!"
