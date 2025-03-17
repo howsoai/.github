@@ -381,9 +381,9 @@ jobs:
             alembic upgrade head
           fi
 
-          if [[ "${{ inputs.setup_script }}" != "" ]]; then
+          if [[ "${{ inputs.setup-script }}" != "" ]]; then
               # Run optional pre-test setup if provided
-              python ${{ inputs.setup_script }}
+              python ${{ inputs.setup-script }}
           fi
 
           echo "Running pytests..."
