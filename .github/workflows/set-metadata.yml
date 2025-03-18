@@ -33,9 +33,6 @@ on:
       howso-watermarker-py-build:
         required: false
         type: string
-      howso-validator-enterprise-py-build:
-        required: false
-        type: string
       allow-version-prefix:
         required: false
         type: boolean
@@ -135,6 +132,7 @@ jobs:
         echo "payload=$fmtd_payload" >> $GITHUB_OUTPUT
 
   get-howso-synthesizer-py-details:
+    if: inputs.howso-synthesizer-py-build  != ''
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
@@ -146,6 +144,7 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-watermarker-py-details:
+    if: inputs.howso-watermarker-py-build != ''
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
@@ -157,6 +156,7 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-insights-details:
+    if: inputs.howso-insights-build != ''
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
@@ -168,6 +168,7 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-validator-py-details:
+    if: inputs.howso-validator-py-build != ''
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
@@ -179,6 +180,7 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-engine-py-details:
+    if: inputs.howso-engine-py-build != ''
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
@@ -190,6 +192,7 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-amalgam-lang-py-details:
+    if: inputs.amalgam-lang-py-build != ''
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
@@ -201,6 +204,7 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-engine-details:
+    if: github.event.repository.name == 'howso-engine-py'
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
@@ -211,6 +215,7 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-amalgam-details:
+    if: github.event.repository.name == 'amalgam-lang-py'
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
@@ -221,6 +226,7 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   set-metadata:
+    if: always()
     needs:
       - get-howso-engine-details
       - get-amalgam-details
@@ -464,7 +470,7 @@ jobs:
 
   set-version:
     needs: ['set-metadata']
-    if: inputs.skip-version-check == false
+    if: inputs.skip-version-check == false && always()
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.choose-version.outputs.version }}
