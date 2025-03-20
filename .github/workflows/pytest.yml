@@ -451,3 +451,27 @@ jobs:
         with:
           name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
           path: ${{ inputs.traces-fp }}
+
+      - name: Create environment repro script
+        if: inputs.platform-pretty == 'Linux'
+        continue-on-error: true
+        run: |
+          # Download the setup.sh script template
+          wget https://github.com/howsoai/.github/blob/main/workflow-templates/env-repro/setup.sh
+          # Get current Python version
+          python_version=$(python --version 2>&1 | awk '{print $2}')
+          echo "Python $python_version"
+          # Replace the Python version preset
+          sed -i "s|{PYTHON_VERSION}|${python_version}|g" setup.sh
+          # Replace the upstream-details template
+          sed -i "s|{UPSTREAM_DETAILS}|${{ inputs.upstream-details }}|g" setup.sh
+          # Replace the Howso config path
+          #sed -i "s|{HOWSO_CONFIG_PATH}|${{ inputs.config-fp }}|g" setup.sh
+
+      - name: Upload environmnt repro script
+        if: inputs.platform-pretty == 'Linux' && always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: "env-repro-${{ inputs.config-pretty }}-Python-${{ inputs.python-version }}"
+          path: ./setup.sh

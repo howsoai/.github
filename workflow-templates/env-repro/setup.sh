@@ -22,7 +22,7 @@ install_deps() {
     fi
 
     # Install custom Howso dependencies
-    for repo in $(jq -r 'keys[]' "./env-repro/dependency-details.json"); do
+    for repo in $(jq -rc 'keys[]' '{UPSTREAM_DETAILS}' }}); do
         echo "Analyzing $repo for installable .whl files..."
         count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
         ls $repo
@@ -48,6 +48,13 @@ install_deps() {
     fi
 }
 
+# Function to set appropriate environment variables
+set_env_vars() {
+    export TEST_OPTIONS=USE_HOWSO_CONFIG
+    export HOWSO_CONFIG=${1}
+    env | grep HOWSO_CONFIG
+}
+
 # Function to determine CPU architecture
 detect_arch() {
     local arch="$(uname -m)"
@@ -65,7 +72,7 @@ detect_arch() {
 download_artifacts() {
     plat="$(uname -s | tr '[:upper:]' '[:lower:]')"
     arch="$(detect_arch)"
-    for repo in $(jq -r 'keys[]' "./env-repro/dependency-details.json"); do
+    for repo in $(jq -rc 'keys[]' '{UPSTREAM_DETAILS}' }}); do
         echo "Evaluating custom $repo..."
         run_type=$(jq -r --arg repo "$repo" '.[$repo]."run_type"' "./env-repro/dependency-details.json")
         run_id=$(jq -r --arg repo "$repo" '.[$repo]."run_id"' "./env-repro/dependency-details.json")
@@ -142,7 +149,7 @@ fi
 read -p "Do you want to create a virtual environment? (y/n): " create_venv
 
 if [[ "$create_venv" =~ ^[Yy]$ ]]; then
-    read -p "Enter desired Python version (e.g., 3.13.1): " python_version
+    python_version={PYTHON_VERSION}
     
     # Ensure pyenv and pyenv-virtualenv are installed
     if ! command_exists pyenv; then
@@ -185,6 +192,8 @@ check_github_cli
 download_artifacts
 
 install_deps $python_version
+
+set_env_vars {HOWSO_CONFIG_PATH}
 
 if [ $noinstall = true ]; then
     echo -e "\n\nAll custom artifacts downloaded to $dep_dir. Please first `pip install` the appropriate `requirements.txt` file, then install the custom Howso packages manually with `--no-deps`."
