@@ -48,6 +48,13 @@ install_deps() {
     fi
 }
 
+# Function to set appropriate environment variables
+set_env_vars() {
+    export TEST_OPTIONS=USE_HOWSO_CONFIG
+    export HOWSO_CONFIG=${1}
+    env | grep HOWSO_CONFIG
+}
+
 # Function to determine CPU architecture
 detect_arch() {
     local arch="$(uname -m)"
@@ -142,7 +149,7 @@ fi
 read -p "Do you want to create a virtual environment? (y/n): " create_venv
 
 if [[ "$create_venv" =~ ^[Yy]$ ]]; then
-    read -p "Enter desired Python version (e.g., 3.13.1): " python_version
+    python_version={PYTHON_VERSION}
     
     # Ensure pyenv and pyenv-virtualenv are installed
     if ! command_exists pyenv; then
@@ -185,6 +192,8 @@ check_github_cli
 download_artifacts
 
 install_deps $python_version
+
+set_env_vars {HOWSO_CONFIG_PATH}
 
 if [ $noinstall = true ]; then
     echo -e "\n\nAll custom artifacts downloaded to $dep_dir. Please first `pip install` the appropriate `requirements.txt` file, then install the custom Howso packages manually with `--no-deps`."

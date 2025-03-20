@@ -459,15 +459,17 @@ jobs:
           wget https://github.com/howsoai/.github/blob/main/workflow-templates/env-repro/setup.sh
           # Get current Python version
           python_version=$(python --version 2>&1 | awk '{print $2}')
-          # Fill in the Python version preset
+          # Replace the Python version preset
           sed -i "s|{PYTHON_VERSION}|$python_version|g" setup.sh
-          # Fill in the upstream-details template
+          # Replace the upstream-details template
           sed -i "s|{UPSTREAM_DETAILS}|${{ inputs.upstream-details }}|g" setup.sh
+          # Replace the Howso config path
+          sed -i "s|{HOWSO_CONFIG_PATH}|${{ inputs.config-fp }}|g" setup.sh
 
       - name: Upload environmnt repro script
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: "env-repro-Python-${{ inputs.python-version }}"
+          name: "env-repro-${{ inputs.config-pretty }}-Python-${{ inputs.python-version }}"
           path: ./setup.sh
