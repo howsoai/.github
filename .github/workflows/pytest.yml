@@ -436,7 +436,8 @@ jobs:
         if: ${{ github.event.repository.name == 'howso-engine-py' || github.event.repository.name == 'howso-synthesizer-py' }} 
         continue-on-error: true
         run: |
-          if not [[ -e "junit/test-results.xml" ]]; then
+          if ! [[ -e "junit/test-results.xml" ]]; then
+            echo "junit/test-results.xml not found"
             exit 0
           fi
           SKIPPED=$(sed -n 's/.*skipped="\([0-9]\{1,\}\)".*/\1/p' junit/test-results.xml)
@@ -453,25 +454,34 @@ jobs:
           path: ${{ inputs.traces-fp }}
 
       - name: Create environment repro script
-        if: inputs.platform-pretty == 'Linux'
+        id: create-script
+        if: always()
         continue-on-error: true
         run: |
           # Download the setup.sh script template
           wget https://github.com/howsoai/.github/blob/main/workflow-templates/env-repro/setup.sh
+
           # Get current Python version
           python_version=$(python --version 2>&1 | awk '{print $2}')
           echo "Python $python_version"
-          # Replace the Python version preset
-          sed -i "s|{PYTHON_VERSION}|${python_version}|g" setup.sh
-          # Replace the upstream-details template
-          sed -i "s|{UPSTREAM_DETAILS}|${{ inputs.upstream-details }}|g" setup.sh
-          # Replace the Howso config path
-          #sed -i "s|{HOWSO_CONFIG_PATH}|${{ inputs.config-fp }}|g" setup.sh
 
-      - name: Upload environmnt repro script
-        if: inputs.platform-pretty == 'Linux' && always()
+          # Escape special characters safely using jq and printf
+          PYTHON_VERSION_ESCAPED=$(printf '%s\n' "$python_version" | sed 's/[&/\]/\\&/g')
+          UPSTREAM_DETAILS_ESCAPED=$(echo '${{ inputs.upstream-details }}' | jq -R '@json' | sed 's/[&/\]/\\&/g')
+          HOWSO_CONFIG_PATH_ESCAPED=$(echo '${{ inputs.config-fp }}' | jq -R '@json' | sed 's/[&/\]/\\&/g')
+
+          # Replace the Python version preset
+          sed -i "s|{PYTHON_VERSION}|$PYTHON_VERSION_ESCAPED|g" setup.sh
+          # Replace the upstream-details template
+          sed -i "s|{UPSTREAM_DETAILS}|$UPSTREAM_DETAILS_ESCAPED|g" setup.sh
+          # Replace the Howso config path
+          sed -i "s|{HOWSO_CONFIG_PATH}|$HOWSO_CONFIG_PATH_ESCAPED|g" setup.sh
+
+      - name: Upload environment repro script
+        if: steps.create-script.outputs.exists != true && always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: "env-repro-${{ inputs.config-pretty }}-Python-${{ inputs.python-version }}"
+          name: env-repro-${{ inputs.config-pretty}}-${{ inputs.python-version }} 
           path: ./setup.sh
+          overwrite: true
