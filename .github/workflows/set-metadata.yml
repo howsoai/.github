@@ -215,7 +215,7 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-amalgam-details:
-    if: github.event.repository.name == 'amalgam-lang-py'
+    if: github.event.repository.name == 'amalgam-lang-py' || github.event.repository.name == 'evolver'
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
