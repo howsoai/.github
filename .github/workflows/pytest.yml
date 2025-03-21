@@ -465,28 +465,10 @@ jobs:
           python_version=$(python --version 2>&1 | awk '{print $2}')
           echo "Python $python_version"
 
-          # Escape special characters safely using jq and printf
-          PYTHON_VERSION_ESCAPED=$(printf '%s\n' "$python_version" | sed 's/[&/\]/\\&/g')
-          UPSTREAM_DETAILS_ESCAPED=$(echo '${{ inputs.upstream-details }}' | jq -R '@json' | sed 's/[&/\]/\\&/g')
-          HOWSO_CONFIG_PATH_ESCAPED=$(echo '${{ inputs.config-fp }}' | jq -R '@json' | sed 's/[&/\]/\\&/g')
-
-          # Replace the Python version preset
-          # MacOS and Linux have different implementations
-          
-          if [[ "${{ inputs.platform-pretty }}" == "MacOS" ]]; then
-            sed -i '' "s|{PYTHON_VERSION}|$python_version|g" setup.sh
-            # Replace the upstream-details template
-            sed -i '' "s|{UPSTREAM_DETAILS}|${{ inputs.upstream-details }}|g" setup.sh
-            # Replace the Howso config path
-            sed -i '' "s|{HOWSO_CONFIG_PATH}|${{ inputs.config-fp }}|g" setup.sh
-          else
-            # Linux/Windows
-            sed -i "s|{PYTHON_VERSION}|$python_version|g" setup.sh
-            # Replace the upstream-details template
-            sed -i "s|{UPSTREAM_DETAILS}|${{ inputs.upstream-details }}|g" setup.sh
-            # Replace the Howso config path
-            sed -i "s|{HOWSO_CONFIG_PATH}|${{ inputs.config-fp }}|g" setup.sh
-          fi
+          # Platform-agnostic find/replace with Python
+          python3 -c "import sys; f=sys.argv[1]; placeholder=sys.argv[2]; var=sys.argv[3]; s=open(f).read().replace(placeholder, var); open(f, 'w').write(s)" setup.sh {PYTHON_VERSION} $python_version
+          python3 -c "import sys; f=sys.argv[1]; placeholder=sys.argv[2]; var=sys.argv[3]; s=open(f).read().replace(placeholder, var); open(f, 'w').write(s)" setup.sh {HOWSO_CONFIG_PATH} ${{ inputs.config-fp }}
+          python3 -c "import sys; f=sys.argv[1]; placeholder=sys.argv[2]; var=sys.argv[3]; s=open(f).read().replace(placeholder, var); open(f, 'w').write(s)" setup.sh {UPSTREAM_DETAILS} '${{ inputs.upstream-details }}'
 
       - name: Upload environment repro script
         if: steps.create-script.outputs.exists != true && always()
