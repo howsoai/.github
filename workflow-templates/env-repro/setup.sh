@@ -18,6 +18,8 @@ install_deps() {
         python_major_minor="$(echo "${1}" | awk -F. '{print $1 "." $2}')"
         echo "Installing dependencies for Python $python_major_minor..."
 
+        pip install --upgrade pip
+
         # Make a copy of build.sh that doesn't include a --user install
         cp bin/build.sh bin/build_nouser.sh && chmod +x bin/build_nouser.sh
         plat="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -181,7 +183,14 @@ if [[ "$create_venv" =~ ^[Yy]$ ]]; then
 
     # Check if the requested Python version is installed, install only if necessary
     if ! pyenv versions | grep -q "$python_version"; then
-        pyenv install "$python_version"
+        # Ensure the exact version is available
+        if ! pyenv install --list | grep -q "$python_version"; then
+            python_major_minor="$(echo "$python_version" | awk -F. '{print $1 "." $2}')"
+            echo "WARNING: Exact Python version from GitHub ($python_version) not available to Pyenv. Using Pyenv's default minor version (${python_major_minor}.X)"
+            pyenv install $python_major_minor
+        else
+            pyenv install "$python_version"
+        fi
     fi
     
     # Create the virtual environment
