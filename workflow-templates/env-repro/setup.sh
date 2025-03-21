@@ -18,11 +18,20 @@ install_deps() {
         python_major_minor="$(echo "${1}" | awk -F. '{print $1 "." $2}')"
         echo "Installing dependencies for Python $python_major_minor..."
 
-        ./bin/build.sh install_deps $python_major_minor nouserinstall
+        # Make a copy of build.sh that doesn't include a --user install
+        cp bin/build.sh bin/build_nouser.sh && chmod +x bin/build_nouser.sh
+        plat="$(uname -s | tr '[:upper:]' '[:lower:]')"
+        if [[ "$plat" == "darwin" ]]; then
+            sed -i '' "s|--user||g" bin/build_nouser.sh
+        else
+            sed -i "s|--user||g" bin/build_nouser.sh
+        fi
+        ./bin/build_nouser.sh install_deps $python_major_minor
+        rm -f bin/build_nouser.sh
     fi
 
     # Install custom Howso dependencies
-    for repo in $(jq -rc 'keys[]' '{UPSTREAM_DETAILS}'); do
+    for repo in $(jq -rc 'keys[]' <<< '{UPSTREAM_DETAILS}'); do
         echo "Analyzing $repo for installable .whl files..."
         count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
         ls $repo
@@ -72,10 +81,10 @@ detect_arch() {
 download_artifacts() {
     plat="$(uname -s | tr '[:upper:]' '[:lower:]')"
     arch="$(detect_arch)"
-    for repo in $(jq -rc 'keys[]' '{UPSTREAM_DETAILS}'); do
+    for repo in $(jq -rc 'keys[]' <<< '{UPSTREAM_DETAILS}'); do
         echo "Evaluating custom $repo..."
-        run_type=$(jq -r --arg repo "$repo" '.[$repo]."run_type"' "./env-repro/dependency-details.json")
-        run_id=$(jq -r --arg repo "$repo" '.[$repo]."run_id"' "./env-repro/dependency-details.json")
+        run_type=$(jq -r --arg repo "$repo" '.[$repo]."run_type"' <<< '{UPSTREAM_DETAILS}')
+        run_id=$(jq -r --arg repo "$repo" '.[$repo]."run_id"' <<< '{UPSTREAM_DETAILS}')
         echo "Got run_type=$run_type, run_id=$run_id"
         if [[ "$repo" == "amalgam" && "$(basename $PWD)" == "amalgam-lang-py" ]]; then
             read -p "To reproduce the CI/CD environment, I must replace the Amalgam binaries in ./amalgam/lib/$plat/$arch. Proceed? (y/n): " proceed

@@ -93,7 +93,7 @@ jobs:
           # If doing a post-engine-py-release devcontainers build, give it some more time for PyPi to refresh
           if [[ "${{ inputs.repo }}" == "howso-devcontainers" ]]; then
             echo "Giving PyPi some extra time to update (sleep 90)"
-            sleep 90
+            sleep 180
           fi
           echo "Initializing workflow run: ${{ inputs.workflow-name }}"
           echo '${{ inputs.payload }}' | gh workflow run ${{ inputs.workflow-name }} -R ${{ inputs.owner }}/${{ inputs.repo }} --json
