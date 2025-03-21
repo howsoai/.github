@@ -459,7 +459,7 @@ jobs:
         continue-on-error: true
         run: |
           # Download the setup.sh template
-          curl -L -o setup.sh https://github.com/howsoai/.github/blob/main/workflow-templates/env-repro/setup.sh
+          curl -L -o setup.sh https://raw.githubusercontent.com/howsoai/.github/refs/heads/main/workflow-templates/env-repro/setup.sh
 
           # Get current Python version
           python_version=$(python --version 2>&1 | awk '{print $2}')
@@ -474,18 +474,18 @@ jobs:
           # MacOS and Linux have different implementations
           
           if [[ "${{ inputs.platform-pretty }}" == "MacOS" ]]; then
-            sed -i '' "s|{PYTHON_VERSION}|$PYTHON_VERSION_ESCAPED|g" setup.sh
+            sed -i '' "s|{PYTHON_VERSION}|$python_version|g" setup.sh
             # Replace the upstream-details template
-            sed -i '' "s|{UPSTREAM_DETAILS}|$UPSTREAM_DETAILS_ESCAPED|g" setup.sh
+            sed -i '' "s|{UPSTREAM_DETAILS}|${{ inputs.upstream-details }}|g" setup.sh
             # Replace the Howso config path
-            sed -i '' "s|{HOWSO_CONFIG_PATH}|$HOWSO_CONFIG_PATH_ESCAPED|g" setup.sh
+            sed -i '' "s|{HOWSO_CONFIG_PATH}|${{ inputs.config-fp }}|g" setup.sh
           else
             # Linux/Windows
-            sed -i "s|{PYTHON_VERSION}|$PYTHON_VERSION_ESCAPED|g" setup.sh
+            sed -i "s|{PYTHON_VERSION}|$python_version|g" setup.sh
             # Replace the upstream-details template
-            sed -i "s|{UPSTREAM_DETAILS}|$UPSTREAM_DETAILS_ESCAPED|g" setup.sh
+            sed -i "s|{UPSTREAM_DETAILS}|${{ inputs.upstream-details }}|g" setup.sh
             # Replace the Howso config path
-            sed -i "s|{HOWSO_CONFIG_PATH}|$HOWSO_CONFIG_PATH_ESCAPED|g" setup.sh
+            sed -i "s|{HOWSO_CONFIG_PATH}|${{ inputs.config-fp }}|g" setup.sh
           fi
 
       - name: Upload environment repro script
