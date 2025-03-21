@@ -22,7 +22,7 @@ install_deps() {
     fi
 
     # Install custom Howso dependencies
-    for repo in $(jq -rc 'keys[]' '{UPSTREAM_DETAILS}' }}); do
+    for repo in $(jq -rc 'keys[]' '{UPSTREAM_DETAILS}'); do
         echo "Analyzing $repo for installable .whl files..."
         count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
         ls $repo
@@ -72,7 +72,7 @@ detect_arch() {
 download_artifacts() {
     plat="$(uname -s | tr '[:upper:]' '[:lower:]')"
     arch="$(detect_arch)"
-    for repo in $(jq -rc 'keys[]' '{UPSTREAM_DETAILS}' }}); do
+    for repo in $(jq -rc 'keys[]' '{UPSTREAM_DETAILS}'); do
         echo "Evaluating custom $repo..."
         run_type=$(jq -r --arg repo "$repo" '.[$repo]."run_type"' "./env-repro/dependency-details.json")
         run_id=$(jq -r --arg repo "$repo" '.[$repo]."run_id"' "./env-repro/dependency-details.json")
@@ -86,9 +86,9 @@ download_artifacts() {
             # Necessary since a-l-py tests will be run with an editable install of a-l-py
             echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
             if [[ "$run_type" == "release" ]]; then
-                gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}.tar.gz" "$run_id"
+                gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*$plat-$arch.tar.gz" "$run_id"
             else
-                gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}" "$run_id"
+                gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*$plat-$arch" "$run_id"
             fi
             # Extract binaries
             cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
