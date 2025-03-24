@@ -143,6 +143,10 @@ jobs:
         if: inputs.build-system == 'setuptools'
         id: compile-requirements-setuptools
         run: |
+          # Setuptools 78.0.1 has broken many dependencies without an older pinned version
+          echo "setuptools<78" > constraint.txt
+          export PIP_CONSTRAINT=constraint.txt
+
           # Pull latest changes
           git pull
           # Install pyenv & Python build dependencies
