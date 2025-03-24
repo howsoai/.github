@@ -35,8 +35,8 @@ install_deps() {
     # Install custom Howso dependencies
     for repo in $(jq -rc 'keys[]' <<< '{UPSTREAM_DETAILS}'); do
         echo "Analyzing $repo for installable .whl files..."
-        count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
-        ls $repo
+        count=`ls -1 $repo-whl/*.whl 2>/dev/null | wc -l`
+        ls $repo-whl
         if [[ $count != 0 && "$count" != "" ]]; then
             if [ $noinstall = true ]; then
                 echo "Found custom $repo version; transferring..."
@@ -44,11 +44,11 @@ install_deps() {
             else
                 echo "Found custom $repo version; installing..."
                 pip uninstall ${repo%-py} -y
-                pip install $repo/*.whl --no-deps
+                pip install $repo-whl/*.whl --no-deps
             fi
         fi
         # Clean up leftover directory
-        rm -rf $repo
+        rm -rf $repo-whl
     done
 
     if [ $noinstall = true ]; then
@@ -102,11 +102,10 @@ download_artifacts() {
                 gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*$plat-$arch" "$run_id"
             fi
             # Extract binaries
-            cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+            cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./ && cd ../../..; fi && tar -xvzf *.tar.gz
             cp lib/* .
             # Clean up downloaded directory
             rm *.tar.gz
-            cd ../../../..
         elif [[ "$repo" == "howso-engine" && "$(basename $PWD)" == "howso-engine-py" ]]; then
             read -p "To reproduce the CI/CD environment, I must replace the Engine CAMLs in ./howso/howso-engine. Proceed? (y/n): " proceed
             if [[ ! "$proceed" =~ ^[Yy]$ ]]; then
@@ -117,16 +116,14 @@ download_artifacts() {
             echo "Downloading and extracting Howso Engine CAMLs..."
             gh $run_type download -D howso/howso-engine -R "howsoai/$repo" -p "howso-engine-*" "$run_id"
             # Extract CAMLs
-            cd howso/howso-engine && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+            cd howso/howso-engine && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./ && cd ../..; fi && tar -xvzf *.tar.gz
             # Clean up downloaded directory
             rm *.tar.gz
-            cd ../..
         elif [[ "$repo" != "amalgam" && "$repo" != "howso-engine" ]]; then
             echo "Downloading..."
-            gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
+            gh $run_type download -D $repo-whl -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
             # Needed because release/non-release downloads are different structure
-            cd $repo && if [[ "$run_type" == "run" ]]; then mv */*.whl ./; fi
-            cd ..
+            cd $repo-whl && if [[ "$run_type" == "run" ]]; then mv */*.whl ./ && cd ..; fi
         fi
     done
 }
@@ -186,8 +183,12 @@ if [[ "$create_venv" =~ ^[Yy]$ ]]; then
         # Ensure the exact version is available
         if ! pyenv install --list | grep -q "$python_version"; then
             python_major_minor="$(echo "$python_version" | awk -F. '{print $1 "." $2}')"
+            use_major_minor=true
             echo "WARNING: Exact Python version from GitHub ($python_version) not available to Pyenv. Using Pyenv's default minor version (${python_major_minor}.X)"
-            pyenv install $python_major_minor
+            if ! pyenv versions | grep -q "$python_major_minor"; then
+                pyenv install $python_major_minor
+            fi
+            python_version=$python_major_minor
         else
             pyenv install "$python_version"
         fi

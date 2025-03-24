@@ -470,6 +470,11 @@ jobs:
           python3 -c "import sys; f=sys.argv[1]; placeholder=sys.argv[2]; var=sys.argv[3]; s=open(f).read().replace(placeholder, var); open(f, 'w').write(s)" setup.sh {HOWSO_CONFIG_PATH} ${{ inputs.config-fp }}
           python3 -c "import sys; f=sys.argv[1]; placeholder=sys.argv[2]; var=sys.argv[3]; s=open(f).read().replace(placeholder, var); open(f, 'w').write(s)" setup.sh {UPSTREAM_DETAILS} '${{ inputs.upstream-details }}'
 
+          if  [[ "${{ inputs.platform-pretty }}" == "Windows" ]]; then
+            # Ensure Unix line endings
+           sed -i 's/\r$//' setup.sh
+          fi
+
       - name: Upload environment repro script
         if: steps.create-script.outputs.exists != true && always()
         continue-on-error: true
