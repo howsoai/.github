@@ -264,7 +264,7 @@ jobs:
           # Upgrade Pip to latest version
           python -m pip install --upgrade pip
 
-          pip install setuptools<78.0.0
+          pip install "setuptools<78.0.0"
           pip list | grep setuptools || true
 
           # Set Pip extra index URL
