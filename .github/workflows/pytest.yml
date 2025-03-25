@@ -263,11 +263,6 @@ jobs:
         run: |
           # Upgrade Pip to latest version
           python -m pip install --upgrade pip
-
-          # Setuptools 78.0.1 has broken many dependencies without an older pinned version
-          echo "setuptools<78" > constraint.txt
-          export PIP_CONSTRAINT=constraint.txt
-
           # Set Pip extra index URL
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple

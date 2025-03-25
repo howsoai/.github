@@ -73,9 +73,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
-          # Setuptools 78.0.1 has broken many dependencies without an older pinned version
-          echo "setuptools<78" > constraint.txt
-          export PIP_CONSTRAINT=constraint.txt
           if [[ ! -e "./.github/templates/version_summary.md" ]]; then
             echo "No workflow summary template found!"
             exit 0
