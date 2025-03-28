@@ -302,7 +302,18 @@ jobs:
 
       - name: Run unit tests
         run: |
-          # Set Howso environment variables
+          # LLM environment variables (might not be needed)
+          if [[ "${{ github.event.repository.name }}" == "howso-insights-app-api" ]]; then
+            export ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+            export OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            export TEST_DATABRICKS_TOKEN=${{ secrets.TEST_DATABRICKS_TOKEN }}
+            export TEST_DATABRICKS_HTTP_PATH=${{ secrets.TEST_DATABRICKS_HTTP_PATH }}
+            export TEST_DATABRICKS_HOST=${{ secrets.TEST_DATABRICKS_HOST }}
+            export TEST_DATABRICKS_CATALOG=${{ secrets.TEST_DATABRICKS_CATALOG }}
+            export TEST_DATABRICKS_CATALOG_SCHEMA=${{ secrets.TEST_DATABRICKS_CATALOG_SCHEMA }}
+            export TEST_DATABRICKS_CATALOG_SCHEMA_TABLE=${{ secrets.TEST_DATABRICKS_CATALOG_SCHEMA_TABLE }}
+            export TEST_DATABRICKS_CATALOG_SCHEMA_TABLE_ACTION_FEATURES=${{ secrets.TEST_DATABRICKS_CATALOG_SCHEMA_TABLE_ACTION_FEATURES }}
+          fi
 
           # If the platform is Windows, specify UTF8 enconding as it may not be on by default
           if [[ ${{ inputs.enable-utf8}} == true ]]; then
