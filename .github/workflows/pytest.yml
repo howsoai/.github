@@ -42,7 +42,7 @@ on:
         description: The number of Pytest workers to use
         type: string
         required: false
-        default: '1'
+        default: "1"
       enable-utf8:
         description: Whether to enable the PYTHONUTF8 flag
         type: boolean
@@ -63,7 +63,7 @@ on:
       traces-fp:
         description: Path of Amalgam trace files
         type: string
-        default: './traces'
+        default: "./traces"
         required: false
       telemetry:
         description: Whether to capture workflow telemetry
@@ -89,6 +89,11 @@ on:
         type: boolean
         required: false
         default: false
+      enable-pyright:
+        description: If true, performs static type checking before tests.
+        type: boolean
+        required: false
+        default: false
       results-summary-paths:
         description: Path(s) of markdown test summaries to upload as build artifacts, as a JSON list
         type: string
@@ -108,7 +113,6 @@ defaults:
     shell: bash
 
 jobs:
-
   test:
     name: Pytest ${{ matrix.target }} (${{ inputs.python-version }}, ${{inputs.platform-pretty}}, ${{ inputs.config-pretty }})
     runs-on: ${{ inputs.platform }}
@@ -117,7 +121,6 @@ jobs:
       matrix:
         target: ${{ fromJson(inputs.targets) }}
     steps:
-
       - uses: actions/checkout@v4
 
       - name: Collect Workflow Telemetry
@@ -135,9 +138,9 @@ jobs:
         env:
           cache-name: dataset-cache-${{ inputs.platform-pretty }}
         with:
-          path: '~/dataset_cache'
+          path: "~/dataset_cache"
           key: dataset-cache-${{ inputs.platform-pretty }}
-      
+
       - name: Setup PMLB Cache
         if: inputs.pmlb-cache == true
         run: |
@@ -172,14 +175,14 @@ jobs:
       - uses: actions/setup-java@v4
         if: inputs.enable-spark == true
         with:
-          java-version: '21'
+          java-version: "21"
           distribution: temurin
 
       - uses: vemonet/setup-spark@v1
         if: inputs.enable-spark == true
         with:
-          spark-version: '3.5.3'
-          hadoop-version: '3'
+          spark-version: "3.5.3"
+          hadoop-version: "3"
 
       - name: Enable Postgres
         if: inputs.enable-postgres == true
@@ -307,12 +310,14 @@ jobs:
             export ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
             export OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             export TEST_DATABRICKS_TOKEN=${{ secrets.TEST_DATABRICKS_TOKEN }}
-            export TEST_DATABRICKS_HTTP_PATH=${{ secrets.TEST_DATABRICKS_HTTP_PATH }}
-            export TEST_DATABRICKS_HOST=${{ secrets.TEST_DATABRICKS_HOST }}
-            export TEST_DATABRICKS_CATALOG=${{ secrets.TEST_DATABRICKS_CATALOG }}
-            export TEST_DATABRICKS_CATALOG_SCHEMA=${{ secrets.TEST_DATABRICKS_CATALOG_SCHEMA }}
-            export TEST_DATABRICKS_CATALOG_SCHEMA_TABLE=${{ secrets.TEST_DATABRICKS_CATALOG_SCHEMA_TABLE }}
-            export TEST_DATABRICKS_CATALOG_SCHEMA_TABLE_ACTION_FEATURES=${{ secrets.TEST_DATABRICKS_CATALOG_SCHEMA_TABLE_ACTION_FEATURES }}
+            export TEST_DATABRICKS_HTTP_PATH=${{ vars.TEST_DATABRICKS_HTTP_PATH }}
+            export TEST_DATABRICKS_HOST=${{ vars.TEST_DATABRICKS_HOST }}
+            export TEST_DATABRICKS_CATALOG=${{ vars.TEST_DATABRICKS_CATALOG }}
+            export TEST_DATABRICKS_CATALOG_SCHEMA=${{ vars.TEST_DATABRICKS_CATALOG_SCHEMA }}
+            export TEST_DATABRICKS_CATALOG_SCHEMA_TABLE=${{ vars.TEST_DATABRICKS_CATALOG_SCHEMA_TABLE }}
+            export TEST_DATABRICKS_CATALOG_SCHEMA_TABLE_ACTION_FEATURES=${{ vars.TEST_DATABRICKS_CATALOG_SCHEMA_TABLE_ACTION_FEATURES }}
+
+
           fi
 
           # If the platform is Windows, specify UTF8 enconding as it may not be on by default
@@ -387,6 +392,11 @@ jobs:
             export AWS_TEST_RW_ACCESSKEYSECRET=${{ secrets.AWS_TEST_RW_ACCESSKEYSECRET }}
           fi
 
+          # Run pyright if requested
+          if [[ "${{ inputs.enable-pyright }}" == "true" ]]; then
+            pyright
+          fi
+
           if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
             alembic upgrade head
           fi
@@ -443,7 +453,7 @@ jobs:
           done
 
       - name: Check for skipped tests
-        if: ${{ github.event.repository.name == 'howso-engine-py' || github.event.repository.name == 'howso-synthesizer-py' }} 
+        if: ${{ github.event.repository.name == 'howso-engine-py' || github.event.repository.name == 'howso-synthesizer-py' }}
         continue-on-error: true
         run: |
           if ! [[ -e "junit/test-results.xml" ]]; then
@@ -490,6 +500,6 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: env-repro-${{ inputs.config-pretty}}-${{ inputs.python-version }} 
+          name: env-repro-${{ inputs.config-pretty}}-${{ inputs.python-version }}
           path: ./setup.sh
           overwrite: true
