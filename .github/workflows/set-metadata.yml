@@ -204,7 +204,6 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-howso-engine-details:
-    if: github.event.repository.name == 'howso-engine-py'
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
@@ -215,7 +214,6 @@ jobs:
       checkout-repo: ${{ inputs.checkout-repos }}
 
   get-amalgam-details:
-    if: github.event.repository.name == 'amalgam-lang-py' || github.event.repository.name == 'evolver'
     needs: ['construct-payload']
     uses: "./.github/workflows/get-dependency-details.yml"
     secrets: inherit
