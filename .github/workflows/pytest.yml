@@ -94,6 +94,11 @@ on:
         type: boolean
         required: false
         default: false
+      enable-ruff:
+        description: If true, format checks using `ruff check` before tests.
+        type: boolean
+        required: false
+        default: false
       results-summary-paths:
         description: Path(s) of markdown test summaries to upload as build artifacts, as a JSON list
         type: string
@@ -395,6 +400,11 @@ jobs:
           # Run pyright if requested
           if [[ "${{ inputs.enable-pyright }}" == "true" ]]; then
             pyright
+          fi
+
+          # Run ruff if requested
+          if [[ "${{ inputs.enable-ruff }}" == "true" ]]; then
+            ruff check
           fi
 
           if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
