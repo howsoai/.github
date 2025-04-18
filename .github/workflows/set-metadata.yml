@@ -36,6 +36,9 @@ on:
       howso-engine-connectors-py-build:
         required: false
         type: string
+      howso-synthesizer-data-services-py-build:
+        required: false
+        type: string
       allow-version-prefix:
         required: false
         type: boolean
