@@ -33,6 +33,9 @@ on:
       howso-watermarker-py-build:
         required: false
         type: string
+      howso-enterprise-build:
+        required: false
+        type: string
       howso-engine-connectors-py-build:
         required: false
         type: string
@@ -113,7 +116,10 @@ jobs:
           "howso-synthesizer-py": "${{ inputs.howso-synthesizer-py-build }}",
           "howso-watermarker-py": "${{ inputs.howso-watermarker-py-build }}",
           "howso-validator-py": "${{ inputs.howso-validator-py-build }}",
-          "howso-insights": "${{ inputs.howso-insights-build }}"
+          "howso-insights": "${{ inputs.howso-insights-build }}",
+          "howso-synthesizer-data-services-py": "${{ inputs.howso-synthesizer-data-services-py-build }}",
+          "howso-engine-connectors-py": "${{ inputs.howso-engine-connectors-py-build }}",
+          "howso-enterprise": "${{ inputs.howso-enterprise-build }}"
         }
         EOF
         )
@@ -157,6 +163,42 @@ jobs:
     with:
       owner: "howsoai"
       repo: "howso-watermarker-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
+
+  get-howso-engine-connectors-py-details:
+    if: inputs.howso-engine-connectors-py-build != ''
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-engine-connectors-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
+
+  get-howso-enterprise-details:
+    if: inputs.howso-enterprise-build != ''
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-enterprise"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
+
+  get-howso-synthesizer-data-services-py-details:
+    if: inputs.howso-synthesizer-data-services-py-build != ''
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-synthesizer-data-services-py"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
       checkout-repo: ${{ inputs.checkout-repos }}
@@ -240,6 +282,9 @@ jobs:
       - get-howso-synthesizer-py-details
       - get-howso-watermarker-py-details
       - get-howso-insights-details
+      - get-howso-synthesizer-data-services-py-details
+      - get-howso-enterprise-details
+      - get-howso-engine-connectors-py-details
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
@@ -318,6 +363,30 @@ jobs:
               "build_title": "${{ needs.get-howso-insights-details.outputs.build-title }}",
               "head_sha": "${{ needs.get-howso-insights-details.outputs.head-sha }}",
               "url": "${{ needs.get-howso-insights-details.outputs.url }}"
+            },
+            "howso-enterprise": {
+              "run_id": "${{ needs.get-howso-enterprise-details.outputs.run-id }}",
+              "run_type": "${{ needs.get-howso-enterprise-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-enterprise-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-enterprise-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-enterprise-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-enterprise-details.outputs.url }}"
+            },
+            "howso-engine-connectors-py": {
+              "run_id": "${{ needs.get-howso-engine-connectors-py-details.outputs.run-id }}",
+              "run_type": "${{ needs.get-howso-engine-connectors-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-engine-connectors-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-engine-connectors-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-engine-connectors-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-engine-connectors-py-details.outputs.url }}"
+            },
+            "howso-synthesizer-data-services-py": {
+              "run_id": "${{ needs.get-howso-synthesizer-data-services-py-details.outputs.run-id }}",
+              "run_type": "${{ needs.get-howso-synthesizer-data-services-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-synthesizer-data-services-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-synthesizer-data-services-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-synthesizer-data-services-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-synthesizer-data-services-py-details.outputs.url }}"
             }
           }
           EOF
