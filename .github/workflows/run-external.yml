@@ -26,6 +26,11 @@ on:
         required: false
         type: boolean
         default: false
+      continue-on-error:
+        description: Whether to enable 'continue-on-error' for this job
+        required: false
+        type: boolean
+        default: false
     outputs:
       run-id:
         value: ${{ jobs.run-external-workflow.outputs.run-id }}
@@ -33,6 +38,7 @@ on:
 jobs:
 
   run-external-workflow:
+    continue-on-error: ${{ inputs.continue-on-error }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
