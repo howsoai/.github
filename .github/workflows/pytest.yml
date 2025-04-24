@@ -432,7 +432,7 @@ jobs:
             echo "GDB installation complete"
             set +e
             # Capture GDB output
-            gdb_output=$(gdb -batch -ex run -ex backtrace --args python -m pytest -s ${{ inputs.extra-args}} ${{ matrix.target }} -W error::pytest.PytestCollectionWarning)
+            gdb_output=$(gdb -batch -ex run -ex backtrace --args python -m pytest --durations=5 -s ${{ inputs.extra-args}} ${{ matrix.target }} -W error::pytest.PytestCollectionWarning)
             gdb_exit_code=$?
             echo "$gdb_output"
             # Evaluate GDB exit code and exit this workflow accordingly
@@ -446,9 +446,9 @@ jobs:
 
           # Run unit tests (non-debug)
           if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest -s ${{ inputs.extra-args }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
+            python -m pytest --durations=5 -s ${{ inputs.extra-args }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
           else
-            python -m pytest -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
+            python -m pytest --durations=5 -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
           fi
 
       - name: Run doctests
