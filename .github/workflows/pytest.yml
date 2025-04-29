@@ -324,8 +324,9 @@ jobs:
             export TEST_DATABRICKS_CATALOG_SCHEMA=${{ vars.TEST_DATABRICKS_CATALOG_SCHEMA }}
             export TEST_DATABRICKS_CATALOG_SCHEMA_TABLE=${{ vars.TEST_DATABRICKS_CATALOG_SCHEMA_TABLE }}
             export TEST_DATABRICKS_CATALOG_SCHEMA_TABLE_ACTION_FEATURES=${{ vars.TEST_DATABRICKS_CATALOG_SCHEMA_TABLE_ACTION_FEATURES }}
-
-
+          elif [[ "${{ github.event.repository.name }}" == "howso-llm-integrations" ]]; then
+            export ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+            export OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           fi
 
           # If the platform is Windows, specify UTF8 enconding as it may not be on by default
@@ -369,7 +370,7 @@ jobs:
           # Adjust MT Howso config for debug mode (MT/Linux/amd64 ONLY)
           if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
             echo "Enabling AMALGAM_FAST_MEMORY_INTEGRITY ($AMLG_TYPE)..."
-            
+
             # Recipes have different structures which require custom config file paths
             if [[ "${{ github.event.repository.name }}" == "howso-synthesizer-recipes" ]]; then
               export HOWSO_CONFIG=~/work/howso-synthesizer-recipes/howso-synthesizer-recipes/config/latest-$AMLG_TYPE-debug-howso.yml
