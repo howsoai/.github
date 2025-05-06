@@ -118,8 +118,110 @@ defaults:
     shell: bash
 
 jobs:
+  ruff:
+    if: inputs.enable-ruff
+    name: Ruff check (${{ inputs.python-version }}, ${{ inputs.platform-pretty }})
+    runs-on: ${{ inputs.platform }}
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Download dependencies
+        env:
+          GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
+        run: |
+          pwd
+          while read -r repo; do
+            echo "Getting details for $repo"
+            # Remove carriage return character (Windows issue)
+            repo=$(echo $repo | tr -d '\r')
+            run_type=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_type"')
+            run_id=$(printf "%s" '${{ inputs.upstream-details }}' | jq -r --arg repo "$repo" '.[$repo]."run_id"')
+            #run_type=$(python -c "import json; import os; import sys; print(json.loads(sys.argv[1])[sys.argv[2].replace('\r', '')]['run_type'])" '${{ inputs.upstream-details }}' $repo)
+            #run_id=$(python -c "import json; import os; import sys; print(json.loads(sys.argv[1])[sys.argv[2].replace('\r', '')]['run_id'])" '${{ inputs.upstream-details }}' $repo)
+            echo "run_type: $run_type, run_id: $run_id"
+            IFS='-' read -r plat arch glibc <<< "${{ inputs.amalgam-plat-arch }}"
+            if [[ "$repo" == "amalgam" && "${{ github.event.repository.name }}" == "amalgam-lang-py" ]]; then
+              # Necessary since a-l-py tests will be run with an editable install of a-l-py
+              echo "Downloading and extracting Amalgam binaries for $plat/$arch..."
+              if [[ "$run_type" == "release" ]]; then
+                gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}.tar.gz" "$run_id"
+              else
+                gh $run_type download -D amalgam/lib/$plat/$arch -R "howsoai/$repo" -p "*${{ inputs.amalgam-plat-arch }}" "$run_id"
+              fi
+              # Extract binaries
+              cd amalgam/lib/$plat/$arch && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+              cp lib/* .
+              ls -l
+              cd ../../../..
+            elif [[ "$repo" == "howso-engine" && "${{ github.event.repository.name }}" == "howso-engine-py" ]]; then
+              # Necessary since hse-py tests will be run with an editable install of hse-py
+              echo "Downloading and extracting Howso Engine CAMLs..."
+              gh $run_type download -D howso/howso-engine -R "howsoai/$repo" -p "howso-engine-*" "$run_id"
+              # Extract CAMLs
+              cd howso/howso-engine && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
+              pwd && ls -l
+              cd ../..
+            elif [[ "$repo" != "amalgam" && "$repo" != "howso-engine" ]]; then
+              gh $run_type download -D $repo -R "howsoai/$repo" -p "*-py3-none-any*" "$run_id"
+              # Needed because release/non-release downloads are different structure
+              cd $repo && if [ ! -f *.whl ]; then mv */*.whl ./; fi
+              cd ..
+            fi
+          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
+
+      - name: Install dependencies
+        run: |
+          # Sometimes, the location of downloaded binaries via Pip may not in the path already
+          echo "~/Library/Python/${{ inputs.python-version }}/bin" >> $GITHUB_PATH
+          echo "~/.local/bin" >> $GITHUB_PATH
+          # Upgrade Pip to latest version
+          python -m pip install --upgrade pip
+          # Set Pip extra index URL
+          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+          fi
+
+          # Install requirements.txt
+          ./bin/build.sh install_deps ${{ inputs.python-version }}
+
+          # Install any custom package versions
+          echo "Installing custom packages..."
+          while read -r repo; do
+            set +e
+            repo=$(echo "$repo" | tr -d '\r')  # Remove carriage return
+            echo "Analyzing $repo for installable .whl files..."
+            count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
+            ls $repo
+            echo "Found count: $count"
+            if [[ $count != 0 && "$count" != "" ]]; then
+              echo "Found custom $repo version; installing..."
+              pip uninstall ${repo%-py} -y
+              pip install $repo/*.whl --no-deps
+            fi
+            set -e
+          done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
+
+          # Print dependency versions to terminal
+          pip list | grep amalgam || true
+          pip list | grep howso || true
+          pip list | grep numpy || true
+          env | grep HOWSO_CONFIG || true
+
+      - name: Ruff check
+        run: |
+          # Sometimes, the location of downloaded binaries via Pip may not in the path already
+          echo "~/Library/Python/${{ inputs.python-version }}/bin" >> $GITHUB_PATH
+          echo "~/.local/bin" >> $GITHUB_PATH
+          ruff check
+
   test:
-    name: Pytest ${{ matrix.target }} (${{ inputs.python-version }}, ${{inputs.platform-pretty}}, ${{ inputs.config-pretty }})
+    name: Pytest ${{ matrix.target }} (${{ inputs.python-version }}, ${{ inputs.platform-pretty }}, ${{ inputs.config-pretty }})
     runs-on: ${{ inputs.platform }}
     strategy:
       fail-fast: false
@@ -310,14 +412,6 @@ jobs:
         run: |
           openssl genrsa 1024 > ./private_key
           cat ./private_key | sed -e 's/^[ ]\*//' | openssl rsa -pubout > ./public_key
-
-      - name: Ruff check
-        if: inputs.enable-ruff
-        run: |
-          # Sometimes, the location of downloaded binaries via Pip may not in the path already
-          echo "~/Library/Python/${{ inputs.python-version }}/bin" >> $GITHUB_PATH
-          echo "~/.local/bin" >> $GITHUB_PATH
-          ruff check
 
       - name: Run unit tests
         run: |
