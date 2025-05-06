@@ -311,6 +311,14 @@ jobs:
           openssl genrsa 1024 > ./private_key
           cat ./private_key | sed -e 's/^[ ]\*//' | openssl rsa -pubout > ./public_key
 
+      - name: Ruff check
+        if: inputs.enable-ruff
+        run: |
+          # Sometimes, the location of downloaded binaries via Pip may not in the path already
+          echo "~/Library/Python/${{ inputs.python-version }}/bin" >> $GITHUB_PATH
+          echo "~/.local/bin" >> $GITHUB_PATH
+          ruff check
+
       - name: Run unit tests
         run: |
           # LLM environment variables (might not be needed)
@@ -393,6 +401,10 @@ jobs:
             export AMALGAM_LIBRARY_POSTFIX="-st"
           fi
 
+          # Sometimes, the location of downloaded binaries via Pip may not in the path already
+          echo "~/Library/Python/${{ inputs.python-version }}/bin" >> $GITHUB_PATH
+          echo "~/.local/bin" >> $GITHUB_PATH
+
           # Set AWS credentials, if applicable
           if [[ "${{ secrets.AWS_TEST_RW_USERNAME }}" ]]; then
             echo "Setting AWS secrets..."
@@ -404,14 +416,6 @@ jobs:
           # Run pyright if requested
           if [[ "${{ inputs.enable-pyright }}" == "true" ]]; then
             pyright
-          fi
-
-          # Run ruff if requested
-          if [[ "${{ inputs.enable-ruff }}" == "true" ]]; then
-            # Sometimes, the location of downloaded binaries via Pip may not in the path already
-            echo "~/Library/Python/${{ inputs.python-version }}/bin" >> $GITHUB_PATH
-            echo "~/.local/bin" >> $GITHUB_PATH
-            ruff check
           fi
 
           if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
