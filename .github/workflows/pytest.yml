@@ -393,7 +393,7 @@ jobs:
             count=`ls -1 $repo/*.whl 2>/dev/null | wc -l`
             ls $repo
             echo "Found count: $count"
-            if [[ $count != 0 && "$count" != "" ]]; then
+            if [[ $count != 0 && "$count" != "" && "$repo" != "howso-engine" ]]; then
               echo "Found custom $repo version; installing..."
               pip uninstall ${repo%-py} -y
               pip install $repo/*.whl --no-deps
