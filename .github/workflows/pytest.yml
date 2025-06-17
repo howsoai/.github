@@ -546,9 +546,9 @@ jobs:
 
           # Run unit tests (non-debug)
           if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest -vv --durations=10 -s ${{ inputs.extra-args }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
+            python -m pytest --durations=10 -s ${{ inputs.extra-args }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
           else
-            python -m pytest -vv --durations=10 -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
+            python -m pytest --durations=10 -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
           fi
 
       - name: Run doctests
