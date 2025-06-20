@@ -92,7 +92,7 @@ jobs:
           fi
 
           # Don't rebuild if the last commit was a rebuild
-          if [[ "${{ github.actor }}" == "dmglennie-diveplane" ]]; then
+          if [[ "${{ github.actor }}" == "dmglennie-diveplane" || "${{ github.actor }}" == "HowsoAndrew" ]]; then
             echo "Requirements were generated in the last commit!"
             unset changes
           fi
