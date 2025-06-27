@@ -95,7 +95,8 @@ jobs:
             --name "tests/$training_file" \
             --file "./howso/text/tests/$training_file" \
 
-          ls ./howso/text/tests/
+          mv ./howso/text/tests/* .
+          ls
 
       - name: Run test
         run: |
@@ -133,7 +134,7 @@ jobs:
           env | grep HOWSO_CACHE || true
           echo "Running language tests..."
 
-          howso-text test exec howso/text/tests/${{ inputs.test-config }}
+          howso-text test exec ${{ inputs.test-config }}
 
       - name: Upload trace files
         if: always()
