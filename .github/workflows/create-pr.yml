@@ -53,16 +53,27 @@ jobs:
           echo "Dry run with --base=${{ github.event.repository.default_branch }}, --title=${{ inputs.title }}, --body==${{ inputs.body }}"
           exit 0
         fi
+
+        # Make sure there isn't already a PR open for this branch
+        echo "Checking for existing PR from branch '${{ inputs.branch }}'..."
+        existing_pr=$(gh pr list --head "${{ inputs.branch }}" --json number --jq '.[0].number')
+        if [[ -n "$existing_pr" ]]; then
+          echo "A PR already exists for branch '${{ inputs.branch }}' (PR #$existing_pr). Skipping."
+          exit 0
+        fi
+
         REVIEWERS=""
         if [[ ${{ inputs.recipe-reviewers }} == true ]]; then
           REVIEWERS="--reviewer jdbeel --reviewer cademack --reviewer jackx111"
         fi
+
         if [[ -n "${{ inputs.repo }}" ]]; then
           export GH_TOKEN=${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
           gh pr create --repo "${{ inputs.repo }}" --base "main" --title "${{ inputs.title }}" --body "${{ inputs.body }}" $REVIEWERS
         else
           gh pr create --base ${{ github.event.repository.default_branch }} --title "${{ inputs.title }}" --body "${{ inputs.body }}" $REVIEWERS
         fi
+
         # To trigger Actions, we must make a commit under the PAT
         sleep 5
         git config user.name "howso-automation"
