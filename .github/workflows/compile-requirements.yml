@@ -26,7 +26,7 @@ on:
         description: Space-separated list of Python versions to build requirements for (e.g., "3.9 3.10 3.11")
         type: string
         required: false
-        default: "3.9 3.10 3.11 3.12 3.13"
+        default: "3.10 3.11 3.12 3.13"
       license-python-version:
         description: Python version to use for license generation
         type: string
