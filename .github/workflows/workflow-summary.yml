@@ -119,27 +119,34 @@ jobs:
 
           # Get amalgam metadata from version.json
           echo "Getting Amalgam metadata..."
-          ls -l $site_packages/amalgam/lib/
-          amlg_version=$(jq -r '.version.amalgam' $site_packages/amalgam/lib/version.json)
-          echo "Amalgam version: $amlg_version"
-          amlg_sha=$(jq -r '.version."amalgam_sha"' $site_packages/amalgam/lib/version.json)
-          amlg_url=$(jq -r '.version."amalgam_url"' $site_packages/amalgam/lib/version.json)
-          if [[ $(cat $site_packages/amalgam/lib/version.json | jq '.version | has("amalgam_build_date")') == true && $(cat $site_packages/amalgam/lib/version.json | jq '.version.amalgam_build_date') != "\"\"" ]]; then
-            # Version is a prerelease (workflow run)
-            build_date=$(jq -r '.version."amalgam_build_date"' $site_packages/amalgam/lib/version.json)
-            build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
-            amlg_notes=$(jq -r '.version."amalgam_display_title"' $site_packages/amalgam/lib/version.json)
-            amlg_notes=$(python -c "notes = '$amlg_notes'.split(' -')[0] if 'PR Build' in '$amlg_notes' else '$amlg_notes'; print(notes)")
-            amlg_version=$(echo "$amlg_version ($build_date)")
+          amlg_exists=true
+          # Make sure Amalgam actually exists on the file system to avoid any errors
+          if ! [[ -e $site_packages/amalgam/lib/ ]]; then
+            echo "Amalgam not found."
+            amlg_exists=false
           else
-            # Version is a release
-            amlg_notes=$(echo "Release version embedded in the installed \`amalgam-lang-py\`")
+            ls -l $site_packages/amalgam/lib/
+            amlg_version=$(jq -r '.version.amalgam' $site_packages/amalgam/lib/version.json)
+            echo "Amalgam version: $amlg_version"
+            amlg_sha=$(jq -r '.version."amalgam_sha"' $site_packages/amalgam/lib/version.json)
+            amlg_url=$(jq -r '.version."amalgam_url"' $site_packages/amalgam/lib/version.json)
+            if [[ $(cat $site_packages/amalgam/lib/version.json | jq '.version | has("amalgam_build_date")') == true && $(cat $site_packages/amalgam/lib/version.json | jq '.version.amalgam_build_date') != "\"\"" ]]; then
+              # Version is a prerelease (workflow run)
+              build_date=$(jq -r '.version."amalgam_build_date"' $site_packages/amalgam/lib/version.json)
+              build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
+              amlg_notes=$(jq -r '.version."amalgam_display_title"' $site_packages/amalgam/lib/version.json)
+              amlg_notes=$(python -c "notes = '$amlg_notes'.split(' -')[0] if 'PR Build' in '$amlg_notes' else '$amlg_notes'; print(notes)")
+              amlg_version=$(echo "$amlg_version ($build_date)")
+            else
+              # Version is a release
+              amlg_notes=$(echo "Release version embedded in the installed \`amalgam-lang-py\`")
+            fi
+            # Substitute info into version_summary.md
+            sed -i "s|{amalgam-version}|$amlg_version|g" ./.github/templates/version_summary.md
+            sed -i "s|{amalgam-notes}|$amlg_notes|g" ./.github/templates/version_summary.md
+            sed -i "s|{amalgam-sha}|$amlg_sha|g" ./.github/templates/version_summary.md
+            sed -i "s|{amalgam-url}|$amlg_url|g" ./.github/templates/version_summary.md
           fi
-          # Substitute info into version_summary.md
-          sed -i "s|{amalgam-version}|$amlg_version|g" ./.github/templates/version_summary.md
-          sed -i "s|{amalgam-notes}|$amlg_notes|g" ./.github/templates/version_summary.md
-          sed -i "s|{amalgam-sha}|$amlg_sha|g" ./.github/templates/version_summary.md
-          sed -i "s|{amalgam-url}|$amlg_url|g" ./.github/templates/version_summary.md
 
           # If the current repo is amalgam-lang-py, there are no other dependencies to investigate. 
           if [[ "${{ github.event.repository.name }}" == "amalgam-lang-py" ]]; then
@@ -164,25 +171,28 @@ jobs:
           fi
 
           # Get howso-engine metadata from version.json
-          hse_version=$(jq -r '."version"' $site_packages/howso/howso-engine/version.json)
-          hse_sha=$(jq -r '."sha"' $site_packages/howso/howso-engine/version.json)
-          hse_url=$(jq -r '."url"' $site_packages/howso/howso-engine/version.json)
-          if [[ $(cat $site_packages/howso/howso-engine/version.json | jq '. | has("build_date")') == true && $(cat $site_packages/howso/howso-engine/version.json | jq '.build_date') != "\"\"" ]]; then
-            # Version is a prerelease (workflow run)
-            build_date=$(jq -r '."build_date"' $site_packages/howso/howso-engine/version.json)
-            build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
-            hse_notes=$(jq -r '."display_title"' $site_packages/howso/howso-engine/version.json)
-            hse_notes=$(python -c "notes = '$hse_notes'.split(' -')[0] if 'PR Build' in '$hse_notes' else '$hse_notes'; print(notes)")
-            hse_version=$(echo "$hse_version ($build_date)")
-          else
-            # Version is a release
-            hse_notes=$(echo "Release version embedded in the installed \`howso-engine-py\`")
+          # However, if Amalgam isn't present in this file system, assume Howso Engine also is not present.
+          if $amlg_exists; then
+            hse_version=$(jq -r '."version"' $site_packages/howso/howso-engine/version.json)
+            hse_sha=$(jq -r '."sha"' $site_packages/howso/howso-engine/version.json)
+            hse_url=$(jq -r '."url"' $site_packages/howso/howso-engine/version.json)
+            if [[ $(cat $site_packages/howso/howso-engine/version.json | jq '. | has("build_date")') == true && $(cat $site_packages/howso/howso-engine/version.json | jq '.build_date') != "\"\"" ]]; then
+              # Version is a prerelease (workflow run)
+              build_date=$(jq -r '."build_date"' $site_packages/howso/howso-engine/version.json)
+              build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
+              hse_notes=$(jq -r '."display_title"' $site_packages/howso/howso-engine/version.json)
+              hse_notes=$(python -c "notes = '$hse_notes'.split(' -')[0] if 'PR Build' in '$hse_notes' else '$hse_notes'; print(notes)")
+              hse_version=$(echo "$hse_version ($build_date)")
+            else
+              # Version is a release
+              hse_notes=$(echo "Release version embedded in the installed \`howso-engine-py\`")
+            fi
+            # Substitute info into version_summary.md
+            sed -i "s|{howso-engine-version}|$hse_version|g" ./.github/templates/version_summary.md
+            sed -i "s|{howso-engine-notes}|$hse_notes|g" ./.github/templates/version_summary.md
+            sed -i "s|{howso-engine-sha}|$hse_sha|g" ./.github/templates/version_summary.md
+            sed -i "s|{howso-engine-url}|$hse_url|g" ./.github/templates/version_summary.md
           fi
-          # Substitute info into version_summary.md
-          sed -i "s|{howso-engine-version}|$hse_version|g" ./.github/templates/version_summary.md
-          sed -i "s|{howso-engine-notes}|$hse_notes|g" ./.github/templates/version_summary.md
-          sed -i "s|{howso-engine-sha}|$hse_sha|g" ./.github/templates/version_summary.md
-          sed -i "s|{howso-engine-url}|$hse_url|g" ./.github/templates/version_summary.md
 
           # Get Howso Python package metadata from workflow run or release install
           # This list has to be hard-coded because we need info about all Howso packages, even if they are not in upstream-details
