@@ -112,6 +112,8 @@ download_artifacts() {
                 echo "No replacements made. Exiting."
                 exit 1
             fi
+            # Remove any existing howso.caml
+            rm -f howso/howso-engine/howso.caml
             # Necessary since hse-py tests will be run with an editable install of hse-py
             echo "Downloading and extracting Howso Engine CAMLs..."
             gh $run_type download -D howso/howso-engine -R "howsoai/$repo" -p "howso-engine-*" "$run_id"
