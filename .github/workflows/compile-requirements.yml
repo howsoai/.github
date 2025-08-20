@@ -127,7 +127,7 @@ jobs:
   compile-requirements:
     needs: ['check-requirements']
     if: needs.check-requirements.outputs.changes != '' || inputs.force-rebuild == true
-    runs-on: ubuntu-latest
+    runs-on: platform-ubuntu-runner-small
     permissions: write-all
     env:
       GH_TOKEN: ${{ github.token }}
