@@ -535,6 +535,7 @@ jobs:
             echo "GDB installation complete"
             set +e
             # Capture GDB output
+            env | grep HOWSO_CONFIG
             gdb_output=$(gdb -batch -ex run -ex backtrace --args python -m pytest --durations=10 -s ${{ inputs.extra-args}} ${{ matrix.target }} -W error::pytest.PytestCollectionWarning)
             gdb_exit_code=$?
             echo "$gdb_output"
