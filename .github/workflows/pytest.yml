@@ -112,6 +112,11 @@ on:
         description: Optional Python script to run before running unit tests
         type: string
         required: false
+      junit-upload:
+        description: Upload junit/test-results.xml
+        type: boolean
+        required: false
+        default: false
 
 defaults:
   run:
@@ -592,6 +597,14 @@ jobs:
         with:
           name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
           path: ${{ inputs.traces-fp }}
+
+      - name: Upload trace files
+        if: inputs.junit-upload && always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: "results-XML-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
+          path: 'junit/test-results.xml'
 
       - name: Create environment repro script
         id: create-script
