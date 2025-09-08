@@ -555,11 +555,17 @@ jobs:
           fi
 
           # Run unit tests (non-debug)
-          if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest --durations=10 -s ${{ inputs.extra-args }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
-          else
-            python -m pytest --durations=10 -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
-          fi
+          set -euxo pipefail
+          stdbuf -oL -eL python -m pytest --durations=10 -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning | tee pytest.log
+          echo ${PIPESTATUS[0]} > .pytest_exit_code
+      
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-logs
+          path: |
+            pytest.log
 
       - name: Run doctests
         if: inputs.doctest-modules != ''
