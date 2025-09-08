@@ -419,8 +419,6 @@ jobs:
           cat ./private_key | sed -e 's/^[ ]\*//' | openssl rsa -pubout > ./public_key
 
       - name: Run unit tests
-        env:
-          PYTEST_DEBUG: 1
         run: |
           # LLM environment variables (might not be needed)
           pwd && ls
