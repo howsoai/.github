@@ -598,7 +598,7 @@ jobs:
           name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
           path: ${{ inputs.traces-fp }}
 
-      - name: Upload trace files
+      - name: Upload JUnit XML
         if: inputs.junit-upload && always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
