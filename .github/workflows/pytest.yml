@@ -418,7 +418,9 @@ jobs:
           openssl genrsa 1024 > ./private_key
           cat ./private_key | sed -e 's/^[ ]\*//' | openssl rsa -pubout > ./public_key
 
-      - name: Run unit tests
+      - name: Run unit testsS
+        env:
+          PYTEST_DEBUG: 1
         run: |
           # LLM environment variables (might not be needed)
           pwd && ls
