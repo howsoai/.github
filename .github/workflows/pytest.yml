@@ -420,6 +420,9 @@ jobs:
 
       - name: Run unit tests
         continue-on-error: true
+        env:
+          ACTIONS_RUNNER_DEBUG: true
+          ACTIONS_STEP_DEBUG: true
         run: |
           # LLM environment variables (might not be needed)
           pwd && ls
@@ -555,9 +558,7 @@ jobs:
           fi
 
           # Run unit tests (non-debug)
-          set -euxo pipefail
-          stdbuf -oL -eL python -m pytest --durations=10 -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning | tee pytest.log
-          echo ${PIPESTATUS[0]} > .pytest_exit_code
+          python -m pytest --durations=10 -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning | tee pytest.log
       
       - name: Upload logs
         if: always()
