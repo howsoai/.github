@@ -79,10 +79,17 @@ jobs:
 
       - name: Validate branch name
         run: |
-          # if [[ "${{ github.ref_name }}" == "0"* ]]; then
-            echo "❌ - Branch name must not start with leading zeros. It will break the packaging process. Apologies for any inconvenience."
-            exit 1
-          fi
+            # Pick the right ref depending on event type
+            BRANCH="${{ github.ref_name }}"
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              exit 0
+            fi
+
+            if [[ "$BRANCH" =~ ^0 ]]; then
+              echo "❌ - Branch name must not start with leading zeros. It will break the packaging process. Apologies for any inconvenience."
+              exit 1
+            fi
+            echo "✅ Branch: $BRANCH"
 
       - name: Validate PR Title
         if: inputs.build-type == 'PR'
