@@ -77,6 +77,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate branch name
+        run: |
+          # if [[ "${{ github.ref_name }}" == "0"* ]]; then
+            echo "❌ - Branch name must not start with leading zeros. It will break the packaging process. Apologies for any inconvenience."
+            exit 1
+          fi
+
       - name: Validate PR Title
         if: inputs.build-type == 'PR'
         run: |
