@@ -2,6 +2,11 @@ name: Reusable WF - Create Release Notes
 
 on:
   workflow_call:
+    inputs:
+      amalgam-version:
+        description: An Amalgam version to print informatively in the changelog
+        type: string
+        required: false
     outputs:
       changelog:
         value: ${{ jobs.create-release-notes.outputs.changelog }}
@@ -34,6 +39,7 @@ jobs:
           echo "Generating release notes from $latest_release_hash to ${{ github.sha }}"
 
       - name: Build Changelog
+        if: inputs.amalgam-version == ''
         uses: mikepenz/release-changelog-builder-action@v4
         id: build-changelog
         with:
@@ -44,5 +50,20 @@ jobs:
           configurationJson: |
             {
               "template": "## What's Changed\n #{{UNCATEGORIZED}}\n\n **Full changelog**: #{{RELEASE_DIFF}}",
+              "pr_template": "- #{{TITLE}} by @#{{AUTHOR}} in [##{{NUMBER}}](#{{URL}})\n"
+            }
+
+      - name: Build Changelog (amalgam-lang-py only)
+        if: inputs.amalgam-version != ''
+        uses: mikepenz/release-changelog-builder-action@v4
+        id: build-changelog-a-l-py
+        with:
+          owner: 'howsoai'
+          repo: ${{ github.event.repository.name }}
+          fromTag: ${{ steps.get-hashes.outputs.latest-release-hash }}
+          toTag: ${{ github.sha }}
+          configurationJson: |
+            {
+              "template": "## What's Changed\n #{{UNCATEGORIZED}}\n\n **Full changelog**: #{{RELEASE_DIFF}}\nThis release pins Amalgam version **${{ inputs.amalgam-version }}**.",
               "pr_template": "- #{{TITLE}} by @#{{AUTHOR}} in [##{{NUMBER}}](#{{URL}})\n"
             }
