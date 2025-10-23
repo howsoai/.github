@@ -196,7 +196,7 @@ jobs:
 
           # Get Howso Python package metadata from workflow run or release install
           # This list has to be hard-coded because we need info about all Howso packages, even if they are not in upstream-details
-          declare -a arr=("howso-enterprise" "howso-engine-connectors-py" "howso-synthesizer-data-services-py" "howso-watermarker-py" "howso-validator-enterprise-py" "howso-validator-py" "howso-insights" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
+          declare -a arr=("howso-enterprise" "howso-engine-connectors-py" "howso-benchmarker-common" "howso-synthesizer-data-services-py" "howso-watermarker-py" "howso-validator-enterprise-py" "howso-validator-py" "howso-insights" "howso-synthesizer-py" "howso-engine-py" "amalgam-lang-py")
           for repo in "${arr[@]}"; do
           pkg_version=$(python -c "
           import importlib.metadata

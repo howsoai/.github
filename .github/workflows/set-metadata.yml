@@ -42,6 +42,9 @@ on:
       howso-synthesizer-data-services-py-build:
         required: false
         type: string
+      howso-benchmarker-common-build:
+        required: false
+        type: string
       allow-version-prefix:
         required: false
         type: boolean
@@ -133,7 +136,8 @@ jobs:
           "howso-insights": "${{ inputs.howso-insights-build }}",
           "howso-synthesizer-data-services-py": "${{ inputs.howso-synthesizer-data-services-py-build }}",
           "howso-engine-connectors-py": "${{ inputs.howso-engine-connectors-py-build }}",
-          "howso-enterprise": "${{ inputs.howso-enterprise-build }}"
+          "howso-enterprise": "${{ inputs.howso-enterprise-build }}",
+          "howso-benchmarker-common": "${{ inputs.howso-benchmarker-common-build }}"
         }
         EOF
         )
@@ -189,6 +193,18 @@ jobs:
     with:
       owner: "howsoai"
       repo: "howso-engine-connectors-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
+
+  get-howso-benchmarker-common-details:
+    if: inputs.howso-benchmarker-common-build != ''
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-benchmarker-common"
       payload: "${{ needs.construct-payload.outputs.payload }}"
       skip-version-json-check: true
       checkout-repo: ${{ inputs.checkout-repos }}
@@ -295,6 +311,7 @@ jobs:
       - get-howso-validator-py-details
       - get-howso-synthesizer-py-details
       - get-howso-watermarker-py-details
+      - get-howso-benchmarker-common-details
       - get-howso-insights-details
       - get-howso-synthesizer-data-services-py-details
       - get-howso-enterprise-details
@@ -401,6 +418,14 @@ jobs:
               "build_title": "${{ needs.get-howso-synthesizer-data-services-py-details.outputs.build-title }}",
               "head_sha": "${{ needs.get-howso-synthesizer-data-services-py-details.outputs.head-sha }}",
               "url": "${{ needs.get-howso-synthesizer-data-services-py-details.outputs.url }}"
+            },
+            "howso-benchmarker-common": {
+              "run_id": "${{ needs.get-howso-benchmarker-common-details.outputs.run-id }}",
+              "run_type": "${{ needs.get-howso-benchmarker-common-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-benchmarker-common-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-benchmarker-common-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-benchmarker-common-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-benchmarker-common-details.outputs.url }}"
             }
           }
           EOF
