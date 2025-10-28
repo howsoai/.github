@@ -8,7 +8,7 @@
 
 # About
 
-The [Howso Engine™](https://howso.com/engine) is a natively and fully explainable ML engine, serving as an alternative to black box AI neural networks. Its core functionality gives users data exploration and machine learning capabilities through the creation and use of Trainees that help users store, explore, and analyze the relationships in their data, as well as make understandable, debuggable predictions. Howso leverages an instance-based learning approach with strong ties to the [k-nearest neighbors](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) algorithm and [information theory](https://en.wikipedia.org/wiki/Information_theory) to scale for real world applications.
+The [Howso Engine™](https://howso.com/engine) is a natively and fully explainable ML engine, serving as an alternative to black box AI neural networks. Its core functionality gives users data exploration and machine learning capabilities through the creation and use of Trainees that help users store, explore, and analyze the relationships in their data, as well as make understandable, debuggable predictions. Howso leverages an instance-based learning approach with strong ties to the [k-nearest neighbors](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) algorithm and [information theory](https://en.wikipedia.org/wiki/Information_theory) to scale for real world applications.  See our extensive paper describing these techniques on [arXiv](https://arxiv.org/abs/2510.22809).
 
 **Explore Interactive Examples on the [Howso Playground](https://playground.howso.com).**
 
@@ -81,10 +81,6 @@ This project serves simply to overlay add an "extra" configuration to ensure tel
 - [Howso Engine Recipes (sample notebooks)](https://github.com/howsoai/howso-engine-recipes)
 - [Howso Playground](https://playground.howso.com)
 - [Howso Website](https://howso.com)
-
-## Questions?
-
-Please post questions to [Stack Overflow](https://stackoverflow.com/) using the tag: 'Howso'.
 
 ## Contributing
 
