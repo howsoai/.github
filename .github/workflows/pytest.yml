@@ -189,7 +189,7 @@ jobs:
           python -m pip install --upgrade pip
           # Set Pip extra index URL
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
-            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+            export PIP_EXTRA_INDEX_URL=${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
 
           # Install requirements.txt
@@ -277,7 +277,7 @@ jobs:
       - name: Set up Docker
         if: inputs.setup-docker == true
         run: |
-          echo "${{ secrets.JFROG_ACCESS_TOKEN }}" | docker login dpbuild-docker-edge.jfrog.io --username "vsts-build@diveplane.com" --password-stdin
+          echo "${{ secrets.JFROG_ACCESS_TOKEN }}" | docker login dpbuild-docker-edge.jfrog.io --username "${{ secrets.ARTIFACTORY_ACCESS_USER }}" --password-stdin
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -383,7 +383,7 @@ jobs:
           python -m pip install --upgrade pip
           # Set Pip extra index URL
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
-            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+            export PIP_EXTRA_INDEX_URL=${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
 
           # Install requirements.txt
@@ -469,7 +469,7 @@ jobs:
             env | grep POSTGRES
           fi
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
-            export PIP_EXTRA_INDEX_URL=https://vsts-build@diveplane.com:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+            export PIP_EXTRA_INDEX_URL=${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           # Determine if using Amalgam MT/ST based on provided config
           if [[ "${{ inputs.config-fp }}" == *"-mt"* ]]; then
