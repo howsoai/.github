@@ -164,6 +164,7 @@ jobs:
             pyenv install $version
             pyenv local $version
             python --version
+            # Later versions of pip break pip requirements generation
             python -m pip install pip==25.2
             bash -l
             # Set extra index URL
@@ -202,10 +203,13 @@ jobs:
           done
 
       - name: Generate third-party licenses (setuptools)
+        if: inputs.build-system == 'setuptools'
         id: gen-licenses-setuptools
         run: |
           which python
           eval "$(pyenv init -)"
+          # Later versions of pip break pip requirements generation
+          python -m pip install pip==25.2
           python --version
           pip list
           rm -f ./LICENSE-3RD-PARTY.txt
@@ -242,6 +246,8 @@ jobs:
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL="https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
           fi
+          # Later versions of pip break pip requirements generation
+          python -m pip install pip==24.2
           # Install pip-tools
           pip install -U pip-tools
           # Compile requirements
@@ -252,6 +258,8 @@ jobs:
         id: gen-licenses-hatch
         run: |
           rm -f ./LICENSE-3RD-PARTY.txt
+          # Later versions of pip break pip requirements generation
+          python -m pip install pip==24.2
           # Set extra index URL
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL="https://${{ secrets.ARTIFACTORY_ACCESS_USER}}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
