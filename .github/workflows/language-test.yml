@@ -106,7 +106,7 @@ jobs:
           export TEST_OPTIONS=USE_HOWSO_CONFIG
           export HOWSO_CONFIG=${{ inputs.config-fp }}
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
-            export PIP_EXTRA_INDEX_URL=${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+            export PIP_EXTRA_INDEX_URL=https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           # Install requirements.txt
           ./bin/build.sh install_deps ${{ inputs.python-version }}

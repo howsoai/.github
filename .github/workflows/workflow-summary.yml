@@ -79,7 +79,7 @@ jobs:
           fi
           python -m pip install --upgrade pip
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
-            export PIP_EXTRA_INDEX_URL=${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
+            export PIP_EXTRA_INDEX_URL=https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           echo "Installing from ${{ inputs.requirements_install_dir }}/bin/build.sh"
           ${{ inputs.requirements_install_dir }}/bin/build.sh install_deps 3.12
