@@ -240,16 +240,17 @@ jobs:
         run: |
           # Pull latest changes
           git pull
+          # Later versions of pip break pip requirements generation
+          python -m pip install pip==24.2
           # Install Hatch
-          pip install hatch
+          pip install click==8.0.4
+          pip install hatch==1.14.1
           # Set extra index URL
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL="https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
           fi
-          # Later versions of pip break pip requirements generation
-          python -m pip install pip==24.2
           # Install pip-tools
-          pip install -U pip-tools
+          pip install -U pip-tools==7.4.1
           # Compile requirements
           hatch run freeze:freeze 
 
@@ -258,8 +259,6 @@ jobs:
         id: gen-licenses-hatch
         run: |
           rm -f ./LICENSE-3RD-PARTY.txt
-          # Later versions of pip break pip requirements generation
-          python -m pip install pip==24.2
           # Set extra index URL
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL="https://${{ secrets.ARTIFACTORY_ACCESS_USER}}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
