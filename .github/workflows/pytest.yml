@@ -117,6 +117,10 @@ on:
         type: boolean
         required: false
         default: false
+      force-hse-version:
+        description: Force a specific version of howso-engine-py (overrides upstream-details)
+        type: string
+        required: false
 
 defaults:
   run:
@@ -405,6 +409,10 @@ jobs:
             fi
             set -e
           done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
+
+          if [[ "${{ inputs.force-hse-version}}" != "" ]]; then
+            pip uninstall howso-engine -y && pip install howso-engine==${{ inputs.force-hse-version }}
+          fi
 
           # Print dependency versions to terminal
           pip list | grep amalgam || true
