@@ -125,6 +125,10 @@ on:
         description: Force a specific version of howso-validator-py (overrides upstream-details)
         type: string
         required: false
+      continue-on-error:
+        description: Whether to allow the unit testing step to continue on error/failure.
+        type: boolean
+        default: false
 
 defaults:
   run:
@@ -435,6 +439,7 @@ jobs:
           cat ./private_key | sed -e 's/^[ ]\*//' | openssl rsa -pubout > ./public_key
 
       - name: Run unit tests
+        continue-on-error: ${{ inputs.continue-on-error }}
         run: |
           # LLM environment variables (might not be needed)
           pwd && ls
