@@ -121,6 +121,10 @@ on:
         description: Force a specific version of howso-engine-py (overrides upstream-details)
         type: string
         required: false
+      force-validator-version:
+        description: Force a specific version of howso-validator-py (overrides upstream-details)
+        type: string
+        required: false
 
 defaults:
   run:
@@ -412,6 +416,10 @@ jobs:
 
           if [[ "${{ inputs.force-hse-version}}" != "" ]]; then
             pip uninstall howso-engine -y && pip install howso-engine==${{ inputs.force-hse-version }}
+          fi
+
+          if [[ "${{ inputs.force-validator-version}}" != "" ]]; then
+            pip uninstall howso-validator -y && pip install howso-validator==${{ inputs.force-validator-version }}
           fi
 
           # Print dependency versions to terminal
