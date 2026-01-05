@@ -24,7 +24,7 @@ on:
 jobs:
 
   output-summary:
-    runs-on: howso-ubuntu-runner-xsmall
+    runs-on: howso-ubuntu-runner-small
     steps:
 
       - uses: actions/checkout@v4
