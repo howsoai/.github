@@ -49,6 +49,7 @@ jobs:
           rm -rf ./tmp
 
       - name: Download dependencies
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
@@ -70,6 +71,7 @@ jobs:
           done < <(printf "%s" '${{ inputs.upstream-details }}' | jq -rc 'keys[]')
 
       - name: Generate workflow summary
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         run: |
