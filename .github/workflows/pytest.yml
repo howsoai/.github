@@ -445,7 +445,6 @@ jobs:
 
       - name: Run unit tests
         continue-on-error: ${{ inputs.continue-on-error }}
-        timeout-minutes: 240
         run: |
           # LLM environment variables (might not be needed)
           pwd && ls
