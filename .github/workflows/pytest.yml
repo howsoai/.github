@@ -388,10 +388,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          if [[ "${{ inputs.platform-pretty }}" == "MacOS" ]]; then
+          if [[ "$(uname)" == "Darwin" ]]; then
             brew update
-            brew install llvm@20
-            export CMAKE_PREFIX_PATH="/usr/local/opt/llvm@20"
+            brew install llvm@15
+            
+            # Set the correct LLVM config path for llvmlite
+            # For Intel Macs:
+            # export LLVM_CONFIG=/usr/local/opt/llvm@14/bin/llvm-config
+            
+            # For Apple Silicon Macs (M1/M2/M3):
+            export LLVM_CONFIG=/opt/homebrew/opt/llvm@14/bin/llvm-config
           fi
           # Sometimes, the location of downloaded binaries via Pip may not in the path already
           echo "~/Library/Python/${{ inputs.python-version }}/bin" >> $GITHUB_PATH
