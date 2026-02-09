@@ -390,7 +390,7 @@ jobs:
         run: |
           if [[ "$(uname)" == "Darwin" ]]; then
             brew update
-            brew install llvm@15
+            brew install llvm@14
             
             # Set the correct LLVM config path for llvmlite
             # For Intel Macs:
