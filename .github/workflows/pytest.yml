@@ -390,16 +390,21 @@ jobs:
         run: |
           # Upgrade Pip to latest version
           python -m pip install --upgrade pip setuptools wheel
+
+          # LLVM stuff for MacOS
           if [[ "$(uname)" == "Darwin" ]]; then
             brew update
             brew install llvm@14
             
             # Set the correct LLVM config path for llvmlite
-            # For Intel Macs:
-            # export LLVM_CONFIG=/usr/local/opt/llvm@14/bin/llvm-config
+            if [[ "${{ inputs.amalgam-plat-arch }}" == "macos-amd64" ]]; then
+              # For Intel Macs:
+              export LLVM_CONFIG=/usr/local/opt/llvm@14/bin/llvm-config
+            else
+              # For Apple Silicon Macs (M1/M2/M3):
+              export LLVM_CONFIG=/opt/homebrew/opt/llvm@14/bin/llvm-config
+            fi
             
-            # For Apple Silicon Macs (M1/M2/M3):
-            export LLVM_CONFIG=/opt/homebrew/opt/llvm@14/bin/llvm-config
           fi
           # Sometimes, the location of downloaded binaries via Pip may not in the path already
           echo "~/Library/Python/${{ inputs.python-version }}/bin" >> $GITHUB_PATH
