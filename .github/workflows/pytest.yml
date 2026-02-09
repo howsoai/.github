@@ -398,8 +398,9 @@ jobs:
             
             # Set the correct LLVM config path for llvmlite
             if [[ "${{ inputs.amalgam-plat-arch }}" == "macos-amd64" ]]; then
-              # For Intel Macs:
+              # For Intel Macs
               export LLVM_CONFIG=/usr/local/opt/llvm@14/bin/llvm-config
+              pip install --only-binary :all: llvmlite
             else
               # For Apple Silicon Macs (M1/M2/M3):
               export LLVM_CONFIG=/opt/homebrew/opt/llvm@14/bin/llvm-config
