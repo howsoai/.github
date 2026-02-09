@@ -388,6 +388,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          # Upgrade Pip to latest version
+          python -m pip install --upgrade pip setuptools wheel
           if [[ "$(uname)" == "Darwin" ]]; then
             brew update
             brew install llvm@14
@@ -402,8 +404,6 @@ jobs:
           # Sometimes, the location of downloaded binaries via Pip may not in the path already
           echo "~/Library/Python/${{ inputs.python-version }}/bin" >> $GITHUB_PATH
           echo "~/.local/bin" >> $GITHUB_PATH
-          # Upgrade Pip to latest version
-          python -m pip install --upgrade pip
           # Set Pip extra index URL
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
