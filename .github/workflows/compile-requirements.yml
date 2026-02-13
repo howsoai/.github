@@ -16,7 +16,7 @@ on:
         description: A branch to commit requirements to (defaults to github.head_ref)
         type: string
         required: false
-        default: ${{ github.head_ref }}
+        default: ${{ github.head_ref || github.event.pull_request.head.ref }}
       force-rebuild:
         description: Force a requirements rebuild even if no changes are detected
         type: boolean
