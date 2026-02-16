@@ -21,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
           fetch-depth: 0  # Ensure full history is fetched for git tags
 
       - name: List Git Tags

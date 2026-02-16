@@ -43,6 +43,8 @@ jobs:
     steps:
 
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 
       - name: Collect Workflow Telemetry
         if: inputs.telemetry == true

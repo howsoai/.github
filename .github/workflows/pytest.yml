@@ -142,6 +142,8 @@ jobs:
     steps:
 
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -246,6 +248,8 @@ jobs:
         target: ${{ fromJson(inputs.targets) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 
       - name: Collect Workflow Telemetry
         if: inputs.telemetry == true
