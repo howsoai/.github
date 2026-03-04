@@ -86,31 +86,67 @@ jobs:
           git status
           changes=$(git diff "origin/${{ github.event.repository.default_branch }}" --name-only -- "$req_file")
 
-          if [[ ! -n "$changes" && ! -e "requirements-3.11.txt" && ! -e "requirements-3.11-dev.txt" ]]; then
-            echo "Requirements.txt does not exist!"
-            changes="no requirements.txt"
+          if [[ ! -n "$changes" ]]; then
+            # Use compgen to check for matching files
+            if [[ -z "$(compgen -G "requirements-*.txt")" ]]; then
+              echo "Requirements.txt does not exist!"
+              changes="no requirements.txt"
+            fi
           fi
 
-          # Don't rebuild if the last commit was a rebuild
+          # Don't rebuild if the last commit was a requirements rebuild
+          # Check if the last commit modified requirements files (not just an empty commit)
+          LAST_COMMIT_FILES=$(git diff-tree --no-commit-id --name-only -r HEAD)
           if [[ "${{ github.actor }}" == "dmglennie-diveplane" || "${{ github.actor }}" == "HowsoAndrew" ]]; then
-            echo "Requirements were generated in the last commit!"
-            unset changes
+            echo "Last commit by bot, checking if it modified requirements..."
+            if echo "$LAST_COMMIT_FILES" | grep -qE "requirements-.*\.txt|LICENSE-3RD-PARTY\.txt"; then
+              echo "Requirements were generated in the last commit!"
+              unset changes
+            else
+              echo "Last commit by bot but didn't modify requirements (probably empty trigger commit)"
+            fi
           fi
 
           # Also don't rebuild if there was a previous rebuild at all
           echo "event_name: ${{ github.event_name }}"
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" && -n "$changes" ]]; then
             PR_NUMBER=$(echo "${{ github.ref }}" | sed 's/refs\/pull\/\([0-9]*\)\/merge/\1/')
-            COMMITS=$(gh pr view $PR_NUMBER --json commits --jq '.commits[]')
-
-            echo "Parsing PR #$PR_NUMBER for automated commits..."
-            set +e
-            echo "$COMMITS" | grep -q "howso-automation"
-            if [ $? -eq 0 ]; then
-              echo "At least one commit was authored by howso-automation; skipping rebuild."
-              unset changes
-            fi
-            set -e
+            
+            echo "Parsing PR #$PR_NUMBER for automated requirements commits..."
+            
+            # Use GitHub API to check each commit's files
+            COMMITS_JSON=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER/commits)
+            
+            # Use process substitution to avoid subshell
+            while read commit_sha; do
+              echo "Checking commit $commit_sha..."
+              
+              # Get commit details including files changed
+              COMMIT_DATA=$(gh api repos/${{ github.repository }}/commits/$commit_sha)
+              
+              COMMIT_AUTHOR=$(echo "$COMMIT_DATA" | jq -r '.commit.author.name')
+              COMMIT_MESSAGE=$(echo "$COMMIT_DATA" | jq -r '.commit.message' | head -n1)
+              
+              echo "  Author: $COMMIT_AUTHOR"
+              echo "  Message: $COMMIT_MESSAGE"
+              
+              # Check if this looks like a bot/automation commit
+              if [[ "$COMMIT_AUTHOR" == *"bot"* || "$COMMIT_AUTHOR" == *"automation"* || "$COMMIT_MESSAGE" == *"equirements"* ]]; then
+                echo "  Bot/automation commit detected, checking files..."
+                
+                # Get list of files changed in this commit
+                FILES_CHANGED=$(echo "$COMMIT_DATA" | jq -r '.files[].filename')
+                echo "  Files changed:"
+                echo "$FILES_CHANGED"
+                
+                # Check if requirements files were modified
+                if echo "$FILES_CHANGED" | grep -qE "requirements-.*\.txt|LICENSE-3RD-PARTY\.txt"; then
+                  echo "  ✓ Found previous requirements rebuild in commit $commit_sha; skipping rebuild."
+                  unset changes
+                  break
+                fi
+              fi
+            done < <(echo "$COMMITS_JSON" | jq -r '.[].sha')
           fi
 
           if [ -n "$changes" ]; then
