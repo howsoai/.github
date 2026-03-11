@@ -141,7 +141,7 @@ jobs:
     runs-on: ${{ inputs.platform }}
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 
@@ -247,7 +247,7 @@ jobs:
       matrix:
         target: ${{ fromJson(inputs.targets) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 

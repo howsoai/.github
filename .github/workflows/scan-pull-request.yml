@@ -16,7 +16,7 @@ jobs:
       changes: ${{ steps.check-requirements.outputs.changes }}
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 

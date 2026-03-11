@@ -41,7 +41,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
         ref: ${{ inputs.branch }}

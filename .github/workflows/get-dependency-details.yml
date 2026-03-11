@@ -55,13 +55,13 @@ jobs:
       url: ${{ steps.dependency.outputs.url }}
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: inputs.checkout-repo == true
         with:
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
           repository: ${{ inputs.owner }}/${{ inputs.repo }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: inputs.checkout-repo == false
         with:
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}

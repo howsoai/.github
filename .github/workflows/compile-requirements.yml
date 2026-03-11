@@ -54,7 +54,7 @@ jobs:
       changes: ${{ steps.detect-changes.outputs.changes }}
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch }}
 
@@ -169,7 +169,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Check out with a PAT so that the workflow can make commits that re-trigger the PR build
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}

@@ -79,7 +79,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 
@@ -326,7 +326,7 @@ jobs:
       upstream-details: ${{ steps.output-upstream-details.outputs.final-upstream-details }}
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 
@@ -593,7 +593,7 @@ jobs:
       version: ${{ steps.choose-version.outputs.version }}
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
           fetch-depth: 0

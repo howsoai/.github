@@ -27,7 +27,7 @@ jobs:
     runs-on: howso-ubuntu-runner-small
     steps:
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 
