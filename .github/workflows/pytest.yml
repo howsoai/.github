@@ -487,6 +487,12 @@ jobs:
             export PYTHONUTF8=1
           fi
 
+          # Spark stuff
+          if [[ ${{ inputs.enable-spark }} == true ]]; then
+                export SPARK_LOCAL_IP=localhost
+                env | grep SPARK
+          fi
+
           # Set access token environment variables if specified
           if [[ ${{ inputs.gen-rsa-keys }} == true ]]; then
             echo "Setting ACCESS_TOKEN_[PUBLIC|PRIVATE]_KEYS..."
