@@ -303,13 +303,13 @@ jobs:
       - uses: actions/setup-java@v4
         if: inputs.enable-spark == true
         with:
-          java-version: "21"
+          java-version: "17"
           distribution: temurin
 
       - uses: vemonet/setup-spark@v1
         if: inputs.enable-spark == true
         with:
-          spark-version: "3.5.3"
+          spark-version: "3.5.8"
           hadoop-version: "3"
 
       - name: Enable Postgres
