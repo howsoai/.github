@@ -641,7 +641,7 @@ jobs:
       - name: Upload trace files
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "traces-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
           path: ${{ inputs.traces-fp }}
@@ -649,7 +649,7 @@ jobs:
       - name: Upload JUnit XML
         if: inputs.junit-upload && always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "results-XML-${{ inputs.platform-pretty }}-${{ inputs.python-version }}-${{ inputs.config-pretty }}"
           path: 'junit/test-results.xml'
@@ -679,7 +679,7 @@ jobs:
       - name: Upload environment repro script
         if: steps.create-script.outputs.exists != true && always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: env-repro-${{ inputs.config-pretty}}-${{ inputs.python-version }}
           path: ./setup.sh
