@@ -47,7 +47,7 @@ jobs:
           # Remove .npmrc so that we can easily change registries to npm-edge (for publishing)
           rm -f .npmrc
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "21.x"
           registry-url: ${{ secrets.JFROG_URL }}/artifactory/api/npm/npm-edge/

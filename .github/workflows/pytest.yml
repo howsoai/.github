@@ -146,7 +146,7 @@ jobs:
           ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ inputs.python-version }}
 
@@ -296,7 +296,7 @@ jobs:
           echo "${{ secrets.JFROG_ACCESS_TOKEN }}" | docker login dpbuild-docker-edge.jfrog.io --username "${{ secrets.ARTIFACTORY_ACCESS_USER }}" --password-stdin
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ inputs.python-version }}
 

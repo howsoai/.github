@@ -266,7 +266,7 @@ jobs:
 
       - name: Set up Python
         if: inputs.build-system == 'hatch'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
