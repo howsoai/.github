@@ -603,7 +603,12 @@ jobs:
 
           # Run unit tests (non-debug)
           if [[ "${{ inputs.workers }}" == "off" ]]; then
-            python -m pytest --durations=10 -s ${{ inputs.extra-args }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
+            # Also capture memory usage
+            /usr/bin/time -v python -m pytest --durations=10 -s ${{ inputs.extra-args }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml 2> time_output.txt
+            EXIT_CODE=$?
+            echo "--- Memory Usage ---"
+            grep "Maximum resident set size" time_output.txt
+            exit $EXIT_CODE
           else
             python -m pytest --durations=10 -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
           fi
