@@ -51,8 +51,6 @@ jobs:
             # Extract binaries
             cd src/webassembly && if [ ! -f *.tar.gz ]; then mv */*.tar.gz ./; fi && tar -xvzf *.tar.gz
             cp bin/* .
-            echo "Amalgam version:"
-            cat docs/version.json
             rm -f *.tar.gz
             rm -rf bin
             rm -rf docs
