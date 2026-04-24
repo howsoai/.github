@@ -45,6 +45,9 @@ on:
       howso-benchmarker-common-build:
         required: false
         type: string
+      howso-visuals-py-build:
+        required: false
+        type: string
       allow-version-prefix:
         required: false
         type: boolean
@@ -141,6 +144,7 @@ jobs:
           "howso-engine-connectors-py": "${{ inputs.howso-engine-connectors-py-build }}",
           "howso-enterprise": "${{ inputs.howso-enterprise-build }}",
           "howso-benchmarker-common": "${{ inputs.howso-benchmarker-common-build }}"
+          "howso-visuals-py": "${{ inputs.howso-visuals-py-build }}",
         }
         EOF
         )
@@ -260,6 +264,18 @@ jobs:
       skip-version-json-check: true
       checkout-repo: ${{ inputs.checkout-repos }}
 
+  get-howso-visuals-py-details:
+    if: inputs.howso-visuals-py-build != ''
+    needs: ['construct-payload']
+    uses: "./.github/workflows/get-dependency-details.yml"
+    secrets: inherit
+    with:
+      owner: "howsoai"
+      repo: "howso-visuals-py"
+      payload: "${{ needs.construct-payload.outputs.payload }}"
+      skip-version-json-check: true
+      checkout-repo: ${{ inputs.checkout-repos }}
+
   get-howso-engine-py-details:
     if: inputs.howso-engine-py-build != ''
     needs: ['construct-payload']
@@ -319,6 +335,7 @@ jobs:
       - get-howso-synthesizer-data-services-py-details
       - get-howso-enterprise-details
       - get-howso-engine-connectors-py-details
+      - get-howso-visuals-py-details
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
@@ -431,6 +448,14 @@ jobs:
               "build_title": "${{ needs.get-howso-benchmarker-common-details.outputs.build-title }}",
               "head_sha": "${{ needs.get-howso-benchmarker-common-details.outputs.head-sha }}",
               "url": "${{ needs.get-howso-benchmarker-common-details.outputs.url }}"
+            },
+            "howso-visuals-py": {
+              "run_id": "${{ needs.get-howso-visuals-py-details.outputs.run-id }}",
+              "run_type": "${{ needs.get-howso-visuals-py-details.outputs.run-type }}",
+              "build_date": "${{ needs.get-howso-visuals-py-details.outputs.build-date }}",
+              "build_title": "${{ needs.get-howso-visuals-py-details.outputs.build-title }}",
+              "head_sha": "${{ needs.get-howso-visuals-py-details.outputs.head-sha }}",
+              "url": "${{ needs.get-howso-visuals-py-details.outputs.url }}"
             }
           }
           EOF
