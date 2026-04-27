@@ -143,8 +143,8 @@ jobs:
           "howso-synthesizer-data-services-py": "${{ inputs.howso-synthesizer-data-services-py-build }}",
           "howso-engine-connectors-py": "${{ inputs.howso-engine-connectors-py-build }}",
           "howso-enterprise": "${{ inputs.howso-enterprise-build }}",
-          "howso-benchmarker-common": "${{ inputs.howso-benchmarker-common-build }}"
-          "howso-visuals-py": "${{ inputs.howso-visuals-py-build }}",
+          "howso-benchmarker-common": "${{ inputs.howso-benchmarker-common-build }}",
+          "howso-visuals-py": "${{ inputs.howso-visuals-py-build }}"
         }
         EOF
         )
