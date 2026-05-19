@@ -84,6 +84,16 @@ on:
         type: boolean
         required: false
         default: false
+      java-version:
+        description: The version of Java to install
+        type: string
+        required: false
+        default: "17"
+      spark-version:
+        description: The version of Spark to install
+        type: string
+        required: false
+        default: "3.5.8"
       enable-postgres:
         description: If true, sets up a Postgres container in the current environment.
         type: boolean
@@ -303,13 +313,13 @@ jobs:
       - uses: actions/setup-java@v4
         if: inputs.enable-spark == true
         with:
-          java-version: "17"
+          java-version: ${{ inputs.java-version }}
           distribution: temurin
 
       - uses: vemonet/setup-spark@v1
         if: inputs.enable-spark == true
         with:
-          spark-version: "3.5.8"
+          spark-version: ${{ inputs.spark-version }}
           hadoop-version: "3"
 
       - name: Enable Postgres
