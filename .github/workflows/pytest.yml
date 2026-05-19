@@ -94,6 +94,11 @@ on:
         type: string
         required: false
         default: "3.5.8"
+      force-latest-pyspark:
+        description: Install the lastest version of PySpark
+        type: boolean
+        required: false
+        default: false
       enable-postgres:
         description: If true, sets up a Postgres container in the current environment.
         type: boolean
@@ -457,10 +462,15 @@ jobs:
             pip uninstall howso-validator -y && pip install howso-validator==${{ inputs.force-validator-version }}
           fi
 
+          if [[ "${{ inputs.force-latest-pyspark }}" == "true" ]]; then
+            pip install --upgrade pyspark
+          fi
+
           # Print dependency versions to terminal
           pip list | grep amalgam || true
           pip list | grep howso || true
           pip list | grep numpy || true
+          pip list | grep pyspark || true
           env | grep HOWSO_CONFIG || true
 
       - name: Generate RSA keys
