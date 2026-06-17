@@ -46,9 +46,9 @@ For visualizing and plotting data using python checkout:
 
 # Dive Deeper
 
-## Amalgam&trade;
+## Amalgam&reg;
 
-Amalgam is the domain specific language used in Howso Engine. Use Amalgam to define functions and enable instance-based learning.
+[Amalgam&reg;](https://github.com/howsoai/amalgam) is an LLM-ready, tree-structured language for safe, sandboxed code generation, manipulation, and advanced information-theoretic inference.  The Howso Engine is built in Amalgam to enable many of its features, including they abilities to natively handle semistructured data and safely execute dynamically generated code during inference.
 
 Coding in Amalgam can be done natively or through the [Amalgam Python wrapper](https://github.com/howsoai/amalgam-lang-py). The Python wrapper handles the binaries for the user so the user just needs to worry about the code.
 
