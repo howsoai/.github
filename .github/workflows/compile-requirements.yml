@@ -203,14 +203,15 @@ jobs:
             # Later versions of pip break pip requirements generation
             python -m pip install pip==25.2
 
-            if [[ "${{ inputs.build-system }}" == "setuptools" ]]; then
+            if [[ "${{ inputs.build-system }}" == "uv" ]]; then
               proc=uv
               # Must install it
-              python -m pip install uv<1.0
-            else:
+              python -m pip install "uv<1.0"
+            else
               # Install pip-tools and run pip-compile
               pip install -U pip-tools==7.5.0
               proc=pip-compile
+            fi
 
             bash -l
             # Set extra index URL
