@@ -204,13 +204,14 @@ jobs:
             python -m pip install pip==25.2
 
             if [[ "${{ inputs.build-system }}" == "uv" ]]; then
-              proc=uv
+              proc="uv pip compile"
               # Must install it
               python -m pip install "uv<1.0"
             else
               # Install pip-tools and run pip-compile
               pip install -U pip-tools==7.5.0
               proc=pip-compile
+              args="--resolver=backtracking --no-emit-index-url --allow-unsafe"
             fi
 
             bash -l
@@ -221,11 +222,11 @@ jobs:
             if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
               # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
               cat requirements.in
-              $proc requirements.in --upgrade --resolver=backtracking --no-emit-index-url --allow-unsafe -o requirements-$version.txt -v
-              $proc requirements-dev.in requirements.in --upgrade --resolver=backtracking --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
+              $proc requirements.in --upgrade $args -o requirements-$version.txt -v
+              $proc requirements-dev.in requirements.in --upgrade $args -o requirements-$version-dev.txt -v
             else
               # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
-              $proc --resolver=backtracking --upgrade --no-emit-index-url --allow-unsafe -o requirements-$version.txt -v
+              $proc --upgrade $args -o requirements-$version.txt -v
               # Check to see if any requirements were actually generated; don't commit "empty" requirements files
               if [[ $(wc -l <requirements-$version.txt) -le 7 ]]; then
                 cat requirements-$version.txt
@@ -241,7 +242,7 @@ jobs:
                 echo "Got extras: $extras"
                 # Only generate dev requirements if there are extras
                 if [[ -n "$extras" ]]; then
-                  $proc $extras --resolver=backtracking --upgrade --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
+                  $proc $extras --upgrade $args -o requirements-$version-dev.txt -v
                 fi
               fi
             fi
