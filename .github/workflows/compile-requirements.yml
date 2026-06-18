@@ -175,8 +175,8 @@ jobs:
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
           ref: ${{ inputs.branch }}
 
-      - name: Compile requirements (setuptools)
-        if: inputs.build-system == 'setuptools'
+      - name: Compile requirements (setuptools|uv)
+        if: inputs.build-system == 'setuptools' || inputs.build-system == 'uv'
         id: compile-requirements-setuptools
         run: |
           # Pull latest changes
@@ -202,21 +202,29 @@ jobs:
             python --version
             # Later versions of pip break pip requirements generation
             python -m pip install pip==25.2
+
+            if [[ "${{ inputs.build-system }}" == "setuptools" ]]; then
+              proc=uv
+              # Must install it
+              python -m pip install uv<1.0
+            else:
+              # Install pip-tools and run pip-compile
+              pip install -U pip-tools==7.5.0
+              proc=pip-compile
+
             bash -l
             # Set extra index URL
             if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
               export PIP_EXTRA_INDEX_URL="https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
             fi
-            # Install pip-tools and run pip-compile
-            pip install -U pip-tools==7.5.0
             if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
               # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
               cat requirements.in
-              pip-compile requirements.in --upgrade --resolver=backtracking --no-emit-index-url --allow-unsafe -o requirements-$version.txt -v
-              pip-compile requirements-dev.in requirements.in --upgrade --resolver=backtracking --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
+              $proc requirements.in --upgrade --resolver=backtracking --no-emit-index-url --allow-unsafe -o requirements-$version.txt -v
+              $proc requirements-dev.in requirements.in --upgrade --resolver=backtracking --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
             else
               # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
-              pip-compile --resolver=backtracking --upgrade --no-emit-index-url --allow-unsafe -o requirements-$version.txt -v
+              $proc --resolver=backtracking --upgrade --no-emit-index-url --allow-unsafe -o requirements-$version.txt -v
               # Check to see if any requirements were actually generated; don't commit "empty" requirements files
               if [[ $(wc -l <requirements-$version.txt) -le 7 ]]; then
                 cat requirements-$version.txt
@@ -232,14 +240,14 @@ jobs:
                 echo "Got extras: $extras"
                 # Only generate dev requirements if there are extras
                 if [[ -n "$extras" ]]; then
-                  pip-compile $extras --resolver=backtracking --upgrade --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
+                  $proc $extras --resolver=backtracking --upgrade --no-emit-index-url --allow-unsafe -o requirements-$version-dev.txt -v
                 fi
               fi
             fi
           done
 
       - name: Generate third-party licenses (setuptools)
-        if: inputs.build-system == 'setuptools'
+        if: inputs.build-system == 'setuptools' || inputs.build-system == 'uv'
         id: gen-licenses-setuptools
         run: |
           which python
