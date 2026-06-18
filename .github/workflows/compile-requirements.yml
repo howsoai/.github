@@ -205,6 +205,8 @@ jobs:
 
             if [[ "${{ inputs.build-system }}" == "uv" ]]; then
               proc="uv pip compile"
+              # uv doesn't use --resolver or --allow-unsafe; --no-emit-index-url is supported
+              args="--no-emit-index-url"
               # Must install it
               python -m pip install "uv<1.0"
             else
@@ -220,13 +222,17 @@ jobs:
               export PIP_EXTRA_INDEX_URL="https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
             fi
             if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
-              # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
               cat requirements.in
               $proc requirements.in --upgrade $args -o requirements-$version.txt -v
               $proc requirements-dev.in requirements.in --upgrade $args -o requirements-$version-dev.txt -v
             else
-              # --allow-unsafe: needed so that setuptools can be compiled, which is a dependency of pytest
-              $proc --upgrade $args -o requirements-$version.txt -v
+              # uv pip compile requires an explicit source file; pip-compile auto-discovers pyproject.toml
+              if [[ "${{ inputs.build-system }}" == "uv" ]]; then
+                compile_src="pyproject.toml"
+              else
+                compile_src=""
+              fi
+              $proc $compile_src --upgrade $args -o requirements-$version.txt -v
               # Check to see if any requirements were actually generated; don't commit "empty" requirements files
               if [[ $(wc -l <requirements-$version.txt) -le 7 ]]; then
                 cat requirements-$version.txt
@@ -242,7 +248,7 @@ jobs:
                 echo "Got extras: $extras"
                 # Only generate dev requirements if there are extras
                 if [[ -n "$extras" ]]; then
-                  $proc $extras --upgrade $args -o requirements-$version-dev.txt -v
+                  $proc $compile_src $extras --upgrade $args -o requirements-$version-dev.txt -v
                 fi
               fi
             fi
