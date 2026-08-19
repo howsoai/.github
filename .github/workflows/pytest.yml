@@ -563,8 +563,15 @@ jobs:
               export HOWSO_CONFIG=./config/latest-$AMLG_TYPE-debug-howso.yml
             fi
           else
-            export HOWSO_CONFIG=${{ inputs.config-fp }}
+            if [[ "${{ inputs.config-fp}}" != "" ]]; then
+              # Only set the environment variable if a config was provided
+              export HOWSO_CONFIG=${{ inputs.config-fp }}
+              echo "HOWSO_CONFIG=$HOWSO_CONFIG"
+            else
+              echo "HOWSO_CONFIG was not provided via `inputs.config-fp` and thus was not set."
+            fi
           fi
+
           # Set AMALGAM_LIBRARY_POSTFIX (for amalgam-lang-py UTs)
           if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
             export AMALGAM_LIBRARY_POSTFIX="-$AMLG_TYPE-afmi"
