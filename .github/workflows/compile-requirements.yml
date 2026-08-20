@@ -232,7 +232,7 @@ jobs:
               else
                 compile_src=""
               fi
-              $proc $compile_src --upgrade $args -o requirements-$version.txt -v
+              $proc $compile_src --upgrade $args -o requirements-$version.txt -vv
               # Check to see if any requirements were actually generated; don't commit "empty" requirements files
               if [[ $(wc -l <requirements-$version.txt) -le 7 ]]; then
                 cat requirements-$version.txt
@@ -248,7 +248,7 @@ jobs:
                 echo "Got extras: $extras"
                 # Only generate dev requirements if there are extras
                 if [[ -n "$extras" ]]; then
-                  $proc $compile_src $extras --upgrade $args -o requirements-$version-dev.txt -v
+                  $proc $compile_src $extras --upgrade $args -o requirements-$version-dev.txt -vv
                 fi
               fi
             fi
