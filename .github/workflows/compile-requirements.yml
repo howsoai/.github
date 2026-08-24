@@ -211,7 +211,7 @@ jobs:
               python -m pip install "uv<1.0"
             else
               # Install pip-tools and run pip-compile
-              pip install -U pip-tools==7.5.0
+              pip install -U pip-tools==7.4.1
               proc=pip-compile
               args="--resolver=backtracking --no-emit-index-url --allow-unsafe"
             fi
