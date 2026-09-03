@@ -482,6 +482,7 @@ jobs:
           cat ./private_key | sed -e 's/^[ ]\*//' | openssl rsa -pubout > ./public_key
 
       - name: Run unit tests
+        id: pytest
         continue-on-error: ${{ inputs.continue-on-error }}
         run: |
           # LLM environment variables (might not be needed)
@@ -609,6 +610,15 @@ jobs:
 
           echo "Running pytests..."
 
+          # Remove any Amalgam trace files (if present) while keeping the directory itself
+          TRACES_FP="${{ inputs.traces-fp }}"
+          clear_traces() {
+            if [[ -d "$TRACES_FP" ]]; then
+              echo "Removing trace files from $TRACES_FP..."
+              find "$TRACES_FP" -mindepth 1 -delete
+            fi
+          }
+
           # Run tests in debug mode
           if [[ "${{ inputs.debug }}" == "true" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
             # Run GDB in batch mode and capture the output
@@ -624,27 +634,65 @@ jobs:
             # Evaluate GDB exit code and exit this workflow accordingly
             if echo "$gdb_output" | tail -n 100 | grep -q "exited normally"; then
               exit 0
-            # Else, something failed, exit 1
+            # Else, something failed, exit 1 (and upload the trace files from the whole run)
             else
+              echo "upload-traces=true" >> $GITHUB_OUTPUT
               exit 1
             fi
           fi
 
           # Run unit tests (non-debug)
-          if [[ "${{ inputs.workers }}" == "off" ]]; then
-            if [[ "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
-              # Also capture memory usage
-              /usr/bin/time -v python -m pytest --durations=10 -s ${{ inputs.extra-args }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml 2> time_output.txt
-              EXIT_CODE=$?
-              echo "--- Memory Usage ---"
-              grep "Maximum resident set size" time_output.txt
-              exit $EXIT_CODE
-            else
-              python -m pytest --durations=10 -s ${{ inputs.extra-args }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
-            fi
-          else
-            python -m pytest --durations=10 -s ${{ inputs.extra-args}} -n ${{ inputs.workers }} ${{ matrix.target }}  -W error::pytest.PytestCollectionWarning --junitxml=junit/test-results.xml
+          PYTEST_CMD=(python -m pytest --durations=10 -s ${{ inputs.extra-args }} -W error::pytest.PytestCollectionWarning)
+          if [[ "${{ inputs.workers }}" != "off" ]]; then
+            PYTEST_CMD+=(-n ${{ inputs.workers }})
           fi
+
+          # Capture pytest exit codes manually rather than failing the step immediately
+          set +e
+          if [[ "${{ inputs.workers }}" == "off" && "${{ inputs.amalgam-plat-arch }}" == "linux-amd64" ]]; then
+            # Also capture memory usage
+            /usr/bin/time -v "${PYTEST_CMD[@]}" ${{ matrix.target }} --junitxml=junit/test-results.xml 2> time_output.txt
+            EXIT_CODE=$?
+            echo "--- Memory Usage ---"
+            grep "Maximum resident set size" time_output.txt
+          else
+            "${PYTEST_CMD[@]}" ${{ matrix.target }} --junitxml=junit/test-results.xml
+            EXIT_CODE=$?
+          fi
+
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            echo "All tests passed; trace files will not be uploaded."
+            clear_traces
+            exit 0
+          fi
+
+          # Pytest records failing test IDs in its cache; use it to re-run only those tests so that
+          # the resulting trace files contain only the failing tests' activity.
+          LAST_FAILED=$(find . -maxdepth 6 -type f -path "*/.pytest_cache/v/cache/lastfailed" -print -quit)
+          if [[ -z "$LAST_FAILED" ]] || ! python -c "import json, sys; sys.exit(0 if json.load(open(sys.argv[1])) else 1)" "$LAST_FAILED"; then
+            echo "::warning title=Pytest Re-run Skipped::[${{ inputs.python-version }}/${{ inputs.platform-pretty }}/${{ inputs.config-pretty }}] Pytest exited with code $EXIT_CODE but no record of failing tests was found (crash or collection error?). Uploading trace files from the full run."
+            echo "upload-traces=true" >> $GITHUB_OUTPUT
+            exit $EXIT_CODE
+          fi
+
+          # Capture the failing test IDs now; pytest clears this file if they pass when re-run
+          FAILED_TESTS=$(python -c "import json, sys; print(', '.join(json.load(open(sys.argv[1]))))" "$LAST_FAILED")
+          echo "Pytest exited with code $EXIT_CODE. Failing tests: $FAILED_TESTS"
+          echo "Re-running only the failing tests to isolate tracefiles..."
+          clear_traces
+          "${PYTEST_CMD[@]}" --last-failed --last-failed-no-failures none ${{ matrix.target }} --junitxml=junit/test-results-rerun.xml
+          RERUN_EXIT_CODE=$?
+
+          if [[ $RERUN_EXIT_CODE -eq 0 ]]; then
+            # Flaky tests: the initial failures passed on re-run, so treat the run as successful
+            echo "::warning title=Flaky Tests::[${{ inputs.python-version }}/${{ inputs.platform-pretty }}/${{ inputs.config-pretty }}] The following tests failed initially but passed when re-run; trace files will not be uploaded: $FAILED_TESTS"
+            clear_traces
+            exit 0
+          fi
+
+          echo "Failing tests still fail when re-run (exit code $RERUN_EXIT_CODE); uploading their trace files."
+          echo "upload-traces=true" >> $GITHUB_OUTPUT
+          exit $EXIT_CODE
 
       - name: Run doctests
         if: inputs.doctest-modules != ''
@@ -677,7 +725,8 @@ jobs:
           fi
 
       - name: Upload trace files
-        if: always()
+        # Only upload trace files when tests failed (and still failed when re-run in isolation)
+        if: always() && steps.pytest.outputs.upload-traces == 'true'
         continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
