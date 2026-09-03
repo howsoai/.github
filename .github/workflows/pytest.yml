@@ -679,6 +679,13 @@ jobs:
           FAILED_TESTS=$(python -c "import json, sys; print(', '.join(json.load(open(sys.argv[1]))))" "$LAST_FAILED")
           echo "Pytest exited with code $EXIT_CODE. Failing tests: $FAILED_TESTS"
           echo "Re-running only the failing tests to isolate tracefiles..."
+          # If pytest-rerunfailures is installed, disable its retries for the isolated re-run so failing
+          # tests aren't retried all over again. A never-matching --only-rerun regex is used because, unlike
+          # --reruns 0, it also overrides rerun counts set via @pytest.mark.flaky(reruns=N).
+          if python -c "import pytest_rerunfailures" 2>/dev/null; then
+            echo "pytest-rerunfailures detected; disabling retries for the re-run"
+            PYTEST_CMD+=(--only-rerun "(?!)")
+          fi
           clear_traces
           "${PYTEST_CMD[@]}" --last-failed --last-failed-no-failures none ${{ matrix.target }} --junitxml=junit/test-results-rerun.xml
           RERUN_EXIT_CODE=$?
