@@ -46,14 +46,6 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.event.pull_request.head.ref }}
 
-      - name: Collect Workflow Telemetry
-        if: inputs.telemetry == true
-        uses: catchpoint/workflow-telemetry-action@v2
-        with:
-          comment_on_pr: off
-          proc_trace_chart_show: off
-          proc_trace_table_show: off
-
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
