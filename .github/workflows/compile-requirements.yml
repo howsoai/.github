@@ -205,15 +205,21 @@ jobs:
 
             if [[ "${{ inputs.build-system }}" == "uv" ]]; then
               proc="uv pip compile"
-              # uv doesn't use --resolver or --allow-unsafe; --no-emit-index-url is supported
-              args="--no-emit-index-url"
+              # uv doesn't use --resolver or --allow-unsafe; --no-emit-index-url is supported.
+              # pip is left out of the output so a pinned pip installed with --user cannot
+              # shadow the runner's pip and break its `pip` console script.
+              args="--no-emit-index-url --no-emit-package pip"
               # Must install it
               python -m pip install "uv<1.0"
             else
               # Install pip-tools and run pip-compile
               pip install -U pip-tools==7.4.1
               proc=pip-compile
-              args="--resolver=backtracking --no-emit-index-url --allow-unsafe"
+              # --unsafe-package pip makes pip the only "unsafe" package, so setuptools is
+              # pinned normally and pip is written as a comment rather than a pin. A pinned
+              # pip installed with --user would shadow the runner's pip and break its `pip`
+              # console script whenever the two versions use different entry points.
+              args="--resolver=backtracking --no-emit-index-url --unsafe-package pip"
             fi
 
             bash -l
