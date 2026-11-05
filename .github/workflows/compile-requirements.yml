@@ -42,6 +42,15 @@ on:
         type: string
         required: false
         default: "setuptools"
+      constraints-file:
+        description: >-
+          Path, relative to the repository root, of a pip constraints file passed with -c to every
+          requirements-<version>[-dev].txt compile. Use python_version environment markers to give
+          each Python version its own constraints. Affects only the generated lockfiles, never the
+          package metadata. Supported with the setuptools and uv build systems.
+        type: string
+        required: false
+        default: ""
 
 jobs:
   check-requirements:
@@ -60,6 +69,8 @@ jobs:
 
       - name: Check for requirements changes
         id: detect-changes
+        env:
+          CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
         run: |
           # Determine which type of requirements/setup file exists in this repo
           if [ -e "pyproject.toml" ]; then
@@ -84,7 +95,11 @@ jobs:
           # Check for changes in the requirements files on the current branch compared to default branch
           git fetch
           git status
-          changes=$(git diff "origin/${{ github.event.repository.default_branch }}" --name-only -- "$req_file")
+          diff_paths=("$req_file")
+          if [[ -n "$CONSTRAINTS_FILE" ]]; then
+            diff_paths+=("$CONSTRAINTS_FILE")
+          fi
+          changes=$(git diff "origin/${{ github.event.repository.default_branch }}" --name-only -- "${diff_paths[@]}")
 
           if [[ ! -n "$changes" ]]; then
             # Requirements.txt missing entirely?
@@ -178,6 +193,8 @@ jobs:
       - name: Compile requirements (setuptools|uv)
         if: inputs.build-system == 'setuptools' || inputs.build-system == 'uv'
         id: compile-requirements-setuptools
+        env:
+          CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
         run: |
           # Pull latest changes
           git pull
@@ -192,6 +209,17 @@ jobs:
           echo "$PYENV_ROOT/shims" >> $GITHUB_PATH
           command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
           eval "$(pyenv init -)"
+          # Collect the pip constraints argument, if a constraints file is configured
+          constraint_args=()
+          if [[ -n "$CONSTRAINTS_FILE" ]]; then
+            if [[ ! -f "$CONSTRAINTS_FILE" ]]; then
+              echo "::error::constraints-file '$CONSTRAINTS_FILE' does not exist"
+              exit 1
+            fi
+            constraint_args=(-c "$CONSTRAINTS_FILE")
+            echo "Applying lockfile constraints from $CONSTRAINTS_FILE:"
+            cat "$CONSTRAINTS_FILE"
+          fi
           # Compile requirements
           IFS=' ' read -r -a versions <<< "${{ inputs.python-versions }}"
           for version in "${versions[@]}"; do
@@ -229,8 +257,8 @@ jobs:
             fi
             if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
               cat requirements.in
-              $proc requirements.in --upgrade $args -o requirements-$version.txt -v
-              $proc requirements-dev.in requirements.in --upgrade $args -o requirements-$version-dev.txt -v
+              $proc requirements.in --upgrade $args "${constraint_args[@]}" -o requirements-$version.txt -v
+              $proc requirements-dev.in requirements.in --upgrade $args "${constraint_args[@]}" -o requirements-$version-dev.txt -v
             else
               # uv pip compile requires an explicit source file; pip-compile auto-discovers pyproject.toml
               if [[ "${{ inputs.build-system }}" == "uv" ]]; then
@@ -238,7 +266,7 @@ jobs:
               else
                 compile_src=""
               fi
-              $proc $compile_src --upgrade $args -o requirements-$version.txt -vv
+              $proc $compile_src --upgrade $args "${constraint_args[@]}" -o requirements-$version.txt -vv
               # Check to see if any requirements were actually generated; don't commit "empty" requirements files
               if [[ $(wc -l <requirements-$version.txt) -le 7 ]]; then
                 cat requirements-$version.txt
@@ -254,7 +282,7 @@ jobs:
                 echo "Got extras: $extras"
                 # Only generate dev requirements if there are extras
                 if [[ -n "$extras" ]]; then
-                  $proc $compile_src $extras --upgrade $args -o requirements-$version-dev.txt -vv
+                  $proc $compile_src $extras --upgrade $args "${constraint_args[@]}" -o requirements-$version-dev.txt -vv
                 fi
               fi
             fi
@@ -295,7 +323,13 @@ jobs:
       - name: Compile requirements (hatch)
         if: inputs.build-system == 'hatch'
         id: compile-requirements-hatch
+        env:
+          CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
         run: |
+          if [[ -n "$CONSTRAINTS_FILE" ]]; then
+            echo "::error::constraints-file is not supported with build-system hatch"
+            exit 1
+          fi
           # Pull latest changes
           git pull
           # Later versions of pip break pip requirements generation
