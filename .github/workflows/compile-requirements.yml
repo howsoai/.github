@@ -71,6 +71,7 @@ jobs:
         id: detect-changes
         env:
           CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
+          BUILD_SYSTEM: ${{ inputs.build-system }}
         run: |
           # Determine which type of requirements/setup file exists in this repo
           if [ -e "pyproject.toml" ]; then
@@ -85,6 +86,18 @@ jobs:
           else
             echo "No requirements.in or pyproject.toml found!"
             exit 1
+          fi
+
+          # Validate the constraints file configuration
+          if [[ -n "$CONSTRAINTS_FILE" ]]; then
+            if [[ "$BUILD_SYSTEM" == "hatch" ]]; then
+              echo "::error::constraints-file is not supported with build-system hatch"
+              exit 1
+            fi
+            if [[ ! -f "$CONSTRAINTS_FILE" ]]; then
+              echo "::error::constraints-file '$CONSTRAINTS_FILE' does not exist"
+              exit 1
+            fi
           fi
 
           # Warn if setup.py is used (should migrate to pyproject.toml)
@@ -212,10 +225,6 @@ jobs:
           # Collect the pip constraints argument, if a constraints file is configured
           constraint_args=()
           if [[ -n "$CONSTRAINTS_FILE" ]]; then
-            if [[ ! -f "$CONSTRAINTS_FILE" ]]; then
-              echo "::error::constraints-file '$CONSTRAINTS_FILE' does not exist"
-              exit 1
-            fi
             constraint_args=(-c "$CONSTRAINTS_FILE")
             echo "Applying lockfile constraints from $CONSTRAINTS_FILE:"
             cat "$CONSTRAINTS_FILE"
@@ -323,13 +332,7 @@ jobs:
       - name: Compile requirements (hatch)
         if: inputs.build-system == 'hatch'
         id: compile-requirements-hatch
-        env:
-          CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
         run: |
-          if [[ -n "$CONSTRAINTS_FILE" ]]; then
-            echo "::error::constraints-file is not supported with build-system hatch"
-            exit 1
-          fi
           # Pull latest changes
           git pull
           # Later versions of pip break pip requirements generation
