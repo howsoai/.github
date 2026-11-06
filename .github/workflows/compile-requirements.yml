@@ -303,6 +303,10 @@ jobs:
         run: |
           which python
           eval "$(pyenv init -)"
+          # Install the lockfile on the Python it was compiled for: its pins can carry
+          # python_version markers (from constraints-file) that skip packages on other Pythons.
+          pyenv install --skip-existing ${{ inputs.license-python-version }}
+          pyenv local ${{ inputs.license-python-version }}
           # Later versions of pip break pip requirements generation
           python -m pip install pip==25.2
           python --version
