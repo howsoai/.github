@@ -85,6 +85,41 @@ jobs:
           if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
             export PIP_EXTRA_INDEX_URL=https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
+          # Repos locked with pylock.toml have no requirements-<version>[-dev].txt. When build.sh does not
+          # install pylock.toml itself, both are written from the versions pylock.toml pins for this
+          # runner's platform and Python. pip is left out of them so that installing them with --user
+          # cannot shadow the runner's pip.
+          lock_dir="${{ inputs.requirements_install_dir }}"
+          py_version="3.12"
+          if [[ -f "$lock_dir/pylock.toml" && ! -f "$lock_dir/requirements-$py_version-dev.txt" ]] \
+            && ! grep -qs 'pylock\.toml' "$lock_dir/bin/build.sh"; then
+            python - "$lock_dir/pylock.toml" > "$lock_dir/requirements-$py_version-dev.txt" <<'EOF'
+          import sys
+          try:
+            import tomllib
+          except ImportError:
+            from pip._vendor import tomli as tomllib
+          try:
+            from packaging.markers import Marker
+          except ImportError:
+            from pip._vendor.packaging.markers import Marker
+
+          # Print name==version for every package in the pylock.toml at argv[1] whose marker matches this
+          # interpreter and platform, reading only the file. pip is left out.
+          with open(sys.argv[1], "rb") as f:
+            packages = tomllib.load(f)["packages"]
+          for package in packages:
+            if package["name"] == "pip" or "version" not in package:
+                continue
+            marker = package.get("marker")
+            if marker is None or Marker(marker).evaluate({"extra": ""}):
+                print(f"{package['name']}=={package['version']}")
+          EOF
+            if [[ ! -f "$lock_dir/requirements-$py_version.txt" ]]; then
+              cp "$lock_dir/requirements-$py_version-dev.txt" "$lock_dir/requirements-$py_version.txt"
+            fi
+            cat "$lock_dir/requirements-$py_version-dev.txt"
+          fi
           echo "Installing from ${{ inputs.requirements_install_dir }}/bin/build.sh"
           ${{ inputs.requirements_install_dir }}/bin/build.sh install_deps 3.12
           # If the current repo is amalgam-lang-py or howso-engine-py, uninstall the editable install and install the build artifact .whl

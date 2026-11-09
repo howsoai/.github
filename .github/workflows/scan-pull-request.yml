@@ -23,11 +23,13 @@ jobs:
       - name: Check for requirements changes
         id: check-requirements
         run: |
-          # Only run a scan if there have been changes to the main requirements.txt
-          if [[ -e "requirements-3.11.txt" ]]; then
+          # Only run a scan if there have been changes to the lockfile: pylock.toml, else the main requirements.txt
+          if [[ -e "pylock.toml" ]]; then
+            req_file="pylock.toml"
+          elif [[ -e "requirements-3.11.txt" ]]; then
             req_file="requirements-3.11.txt"
           else
-            echo "No requirements.txt found!"
+            echo "No pylock.toml or requirements.txt found!"
             exit 0
           fi
           # Check for changes in requirements files on the current branch compared to the default branch
@@ -55,8 +57,35 @@ jobs:
             export PIP_EXTRA_INDEX_URL=https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple
           fi
           mkdir -p dist
-          # Allow this to fail in case there are no 'main' requirements
-          pip download -r requirements-3.11.txt -d ./dist || true
+          if [[ -e "pylock.toml" ]]; then
+            # pylock.toml includes the dev extras, so they are downloaded and scanned too
+            python - pylock.toml > "$RUNNER_TEMP/pylock-pins.txt" <<'EOF'
+          import sys
+          try:
+              import tomllib
+          except ImportError:
+              from pip._vendor import tomli as tomllib
+          try:
+              from packaging.markers import Marker
+          except ImportError:
+              from pip._vendor.packaging.markers import Marker
+
+          # Print name==version for every package in the pylock.toml at argv[1] whose marker matches this
+          # interpreter and platform, reading only the file. pip is left out.
+          with open(sys.argv[1], "rb") as f:
+              packages = tomllib.load(f)["packages"]
+          for package in packages:
+              if package["name"] == "pip" or "version" not in package:
+                  continue
+              marker = package.get("marker")
+              if marker is None or Marker(marker).evaluate({"extra": ""}):
+                  print(f"{package['name']}=={package['version']}")
+          EOF
+            pip download -r "$RUNNER_TEMP/pylock-pins.txt" --no-deps -d ./dist || true
+          else
+            # Allow this to fail in case there are no 'main' requirements
+            pip download -r requirements-3.11.txt -d ./dist || true
+          fi
           # Remove upstream Howso packages since we don't want these to be scanned
           # Also omit jupyter_core and jupyter_client because JFrog does not correctly determine their licenses
           pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-visuals howso-insights howso-openapi-client howso-synthesizer-data-services-py howso-enterprise howso-engine-connectors-py -y
@@ -80,8 +109,8 @@ jobs:
       - name: 🐸 scan
         if: steps.check-requirements.outputs.changes != '' && false
         run: |
-          if [[ ! -e "requirements-3.11.txt" ]]; then
-            echo "Non-dev requirements file is not present"
+          if [[ ! -e "requirements-3.11.txt" && ! -e "pylock.toml" ]]; then
+            echo "Neither pylock.toml nor the non-dev requirements file is present"
             exit 0
           fi
           # Run the xray scan

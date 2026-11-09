@@ -51,6 +51,19 @@ on:
         type: string
         required: false
         default: ""
+      lock-format:
+        description: >-
+          Lockfile format to generate. "requirements" compiles a requirements-<version>.txt and
+          requirements-<version>-dev.txt per entry in python-versions. "pylock" compiles a single
+          pylock.toml with uv against Artifactory (when its secrets are available) and PyPI, covering every Python version from the lowest entry in
+          python-versions upward, every platform, and the runtime dependencies plus every extra in
+          extras; it regenerates only when a fingerprint of those inputs changes, keeps existing pins
+          unless force-rebuild is set, and removes any requirements-<version>[-dev].txt files. The
+          pylock format requires static dependencies in pyproject.toml and does not support build-system
+          hatch. When empty, the caller's PYTHON_LOCK_FORMAT Actions variable is used, else "requirements".
+        type: string
+        required: false
+        default: ""
 
 jobs:
   check-requirements:
@@ -60,15 +73,97 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     outputs:
       dev_req_file: ${{ steps.detect-changes.outputs.dev-req-file }}
-      changes: ${{ steps.detect-changes.outputs.changes }}
+      changes: ${{ steps.detect-changes.outputs.changes || steps.detect-pylock-changes.outputs.changes }}
+      lock-format: ${{ steps.lock-format.outputs.format }}
+      inputs-hash: ${{ steps.detect-pylock-changes.outputs.inputs-hash }}
     steps:
 
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch }}
 
+      - name: Resolve lock format
+        id: lock-format
+        env:
+          LOCK_FORMAT: ${{ inputs.lock-format || vars.PYTHON_LOCK_FORMAT || 'requirements' }}
+        run: |
+          if [[ "$LOCK_FORMAT" != "requirements" && "$LOCK_FORMAT" != "pylock" ]]; then
+            echo "::error::lock-format must be 'requirements' or 'pylock', got '$LOCK_FORMAT'"
+            exit 1
+          fi
+          echo "Lock format: $LOCK_FORMAT"
+          echo "format=$LOCK_FORMAT" >> "$GITHUB_OUTPUT"
+
+      - name: Check for pylock.toml input changes
+        id: detect-pylock-changes
+        if: steps.lock-format.outputs.format == 'pylock'
+        env:
+          CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
+          BUILD_SYSTEM: ${{ inputs.build-system }}
+          PYTHON_VERSIONS: ${{ inputs.python-versions }}
+          EXTRAS: ${{ inputs.extras }}
+        run: |
+          if [[ ! -e "pyproject.toml" ]]; then
+            echo "::error::lock-format pylock requires a pyproject.toml"
+            exit 1
+          fi
+          if [[ "$BUILD_SYSTEM" == "hatch" ]]; then
+            echo "::error::lock-format pylock is not supported with build-system hatch"
+            exit 1
+          fi
+          if [[ -n "$CONSTRAINTS_FILE" && ! -f "$CONSTRAINTS_FILE" ]]; then
+            echo "::error::constraints-file '$CONSTRAINTS_FILE' does not exist"
+            exit 1
+          fi
+
+          # Fingerprint every input that affects the resolution. pylock.toml records the fingerprint
+          # it was compiled from, so a matching fingerprint means pylock.toml is up to date.
+          export PYTHON_FLOOR=$(tr ' ' '\n' <<< "$PYTHON_VERSIONS" | grep . | sort -V | head -n1)
+          inputs_hash=$(python3 - <<'EOF'
+          import hashlib, json, os, sys, tomllib
+
+          with open("pyproject.toml", "rb") as f:
+              project = tomllib.load(f).get("project", {})
+          dynamic = {"dependencies", "optional-dependencies"} & set(project.get("dynamic", []))
+          if dynamic:
+              print(f"::error::lock-format pylock requires static {', '.join(sorted(dynamic))} in pyproject.toml", file=sys.stderr)
+              sys.exit(1)
+          constraints = None
+          if constraints_file := os.environ["CONSTRAINTS_FILE"]:
+              with open(constraints_file) as f:
+                  constraints = f.read()
+          inputs = {
+              "dependencies": project.get("dependencies", []),
+              "optional-dependencies": project.get("optional-dependencies", {}),
+              "requires-python": project.get("requires-python"),
+              "extras": os.environ["EXTRAS"].split(),
+              "python-floor": os.environ["PYTHON_FLOOR"],
+              "constraints": constraints,
+          }
+          print(hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest())
+          EOF
+          )
+          echo "Inputs fingerprint: $inputs_hash"
+
+          changes=""
+          if [[ ! -f pylock.toml ]]; then
+            changes="pylock.toml does not exist"
+          elif [[ "$(sed -n 's/^# inputs-sha256: //p' pylock.toml | head -n1)" != "$inputs_hash" ]]; then
+            changes="pylock.toml was compiled from different inputs"
+          elif [[ -n "$(find . -maxdepth 1 -name 'requirements-[0-9]*.txt' -print -quit)" ]]; then
+            changes="requirements-<version>[-dev].txt files are present alongside pylock.toml"
+          fi
+          if [[ -n "$changes" ]]; then
+            echo "pylock.toml needs regenerating: $changes"
+          else
+            echo "pylock.toml is up to date."
+          fi
+          echo "changes=$changes" >> "$GITHUB_OUTPUT"
+          echo "inputs-hash=$inputs_hash" >> "$GITHUB_OUTPUT"
+
       - name: Check for requirements changes
         id: detect-changes
+        if: steps.lock-format.outputs.format == 'requirements'
         env:
           CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
           BUILD_SYSTEM: ${{ inputs.build-system }}
@@ -203,8 +298,107 @@ jobs:
           token: ${{ secrets.HOWSOAI_WORKFLOW_AUTOMATION_TOKEN }}
           ref: ${{ inputs.branch }}
 
+      - name: Set up Python (pylock)
+        if: needs.check-requirements.outputs.lock-format == 'pylock'
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.license-python-version }}
+
+      - name: Compile pylock.toml
+        if: needs.check-requirements.outputs.lock-format == 'pylock'
+        env:
+          CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
+          PYTHON_VERSIONS: ${{ inputs.python-versions }}
+          EXTRAS: ${{ inputs.extras }}
+          FORCE_REBUILD: ${{ inputs.force-rebuild }}
+          INPUTS_HASH: ${{ needs.check-requirements.outputs.inputs-hash }}
+          UV_INDEX_JFROG_USERNAME: ${{ secrets.ARTIFACTORY_ACCESS_USER }}
+          UV_INDEX_JFROG_PASSWORD: ${{ secrets.JFROG_ACCESS_TOKEN }}
+        run: |
+          git pull
+          python -m pip install "uv<1.0"
+          python_floor=$(tr ' ' '\n' <<< "$PYTHON_VERSIONS" | grep . | sort -V | head -n1)
+          args=(pyproject.toml --universal --python-version "$python_floor" -o pylock.toml)
+          # Artifactory and PyPI are searched together for the highest matching version of each
+          # package, as pip does; Artifactory also holds unrelated old versions of some PyPI package
+          # names. Its credentials come from the UV_INDEX_JFROG_* variables, so the index URL written
+          # into pylock.toml carries none.
+          if [[ -n "$UV_INDEX_JFROG_PASSWORD" ]]; then
+            args+=(--index "jfrog=https://dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple" --index-strategy unsafe-best-match)
+          fi
+          for extra in $EXTRAS; do
+            args+=(--extra "$extra")
+          done
+          if [[ -n "$CONSTRAINTS_FILE" ]]; then
+            args+=(-c "$CONSTRAINTS_FILE")
+          fi
+          # uv keeps the pins already in pylock.toml wherever they still satisfy the inputs;
+          # force-rebuild re-resolves everything to the newest allowed versions
+          if [[ "$FORCE_REBUILD" == "true" ]]; then
+            args+=(--upgrade)
+          fi
+          uv pip compile "${args[@]}"
+          # Record the inputs fingerprint that the check-requirements job compares against
+          { echo "# inputs-sha256: $INPUTS_HASH"; grep -v '^# inputs-sha256:' pylock.toml; } > pylock.toml.new
+          mv pylock.toml.new pylock.toml
+          if [[ -n "$UV_INDEX_JFROG_PASSWORD" ]] && grep -qF "$UV_INDEX_JFROG_PASSWORD" pylock.toml; then
+            echo "::error::pylock.toml contains the Artifactory access token; refusing to commit it"
+            exit 1
+          fi
+          # pylock.toml is the only lockfile in this format
+          rm -f requirements-[0-9]*.txt
+
+      - name: Generate third-party licenses (pylock)
+        if: needs.check-requirements.outputs.lock-format == 'pylock'
+        run: |
+          rm -f ./LICENSE-3RD-PARTY.txt
+          # The license file covers the runtime dependencies (project.dependencies) and their dependencies
+          python - > "$RUNNER_TEMP/runtime.in" <<'EOF'
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+              print("\n".join(tomllib.load(f)["project"].get("dependencies", [])))
+          EOF
+          if [[ -z "$(grep -v '^\s*$' "$RUNNER_TEMP/runtime.in")" ]]; then
+            echo "No runtime dependencies in pyproject.toml."
+            exit 0
+          fi
+          python -m venv "$RUNNER_TEMP/licenses"
+          venv_bin="$RUNNER_TEMP/licenses/bin"
+          "$venv_bin/python" -m pip install --upgrade pip
+          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
+            export PIP_EXTRA_INDEX_URL="https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
+          fi
+          # Constrain the runtime install to the versions pylock.toml pins for this Python
+          "$venv_bin/python" - pylock.toml > "$RUNNER_TEMP/pylock-pins.txt" <<'EOF'
+          import sys
+          try:
+              import tomllib
+          except ImportError:
+              from pip._vendor import tomli as tomllib
+          try:
+              from packaging.markers import Marker
+          except ImportError:
+              from pip._vendor.packaging.markers import Marker
+
+          # Print name==version for every package in the pylock.toml at argv[1] whose marker matches this
+          # interpreter and platform, reading only the file. pip is left out.
+          with open(sys.argv[1], "rb") as f:
+              packages = tomllib.load(f)["packages"]
+          for package in packages:
+              if package["name"] == "pip" or "version" not in package:
+                  continue
+              marker = package.get("marker")
+              if marker is None or Marker(marker).evaluate({"extra": ""}):
+                  print(f"{package['name']}=={package['version']}")
+          EOF
+          "$venv_bin/python" -m pip install -r "$RUNNER_TEMP/runtime.in" -c "$RUNNER_TEMP/pylock-pins.txt"
+          # Do not include Howso software in the 3rd party license file
+          "$venv_bin/python" -m pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
+          "$venv_bin/python" -m pip install pip-licenses
+          "$venv_bin/pip-licenses" --with-authors --with-urls --with-license-file --with-description --format=plain-vertical > ./LICENSE-3RD-PARTY.txt
+
       - name: Compile requirements (setuptools|uv)
-        if: inputs.build-system == 'setuptools' || inputs.build-system == 'uv'
+        if: needs.check-requirements.outputs.lock-format == 'requirements' && (inputs.build-system == 'setuptools' || inputs.build-system == 'uv')
         id: compile-requirements-setuptools
         env:
           CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
@@ -298,7 +492,7 @@ jobs:
           done
 
       - name: Generate third-party licenses (setuptools)
-        if: inputs.build-system == 'setuptools' || inputs.build-system == 'uv'
+        if: needs.check-requirements.outputs.lock-format == 'requirements' && (inputs.build-system == 'setuptools' || inputs.build-system == 'uv')
         id: gen-licenses-setuptools
         run: |
           which python
@@ -328,13 +522,13 @@ jobs:
           pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
 
       - name: Set up Python
-        if: inputs.build-system == 'hatch'
+        if: needs.check-requirements.outputs.lock-format == 'requirements' && inputs.build-system == 'hatch'
         uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
       - name: Compile requirements (hatch)
-        if: inputs.build-system == 'hatch'
+        if: needs.check-requirements.outputs.lock-format == 'requirements' && inputs.build-system == 'hatch'
         id: compile-requirements-hatch
         run: |
           # Pull latest changes
@@ -354,7 +548,7 @@ jobs:
           hatch run freeze:freeze 
 
       - name: Generate third-party licenses (hatch)
-        if: inputs.build-system == 'hatch'
+        if: needs.check-requirements.outputs.lock-format == 'requirements' && inputs.build-system == 'hatch'
         id: gen-licenses-hatch
         run: |
           rm -f ./LICENSE-3RD-PARTY.txt
@@ -382,6 +576,8 @@ jobs:
 
       - name: Commit changes
         id: commit-changes
+        env:
+          LOCK_FORMAT: ${{ needs.check-requirements.outputs.lock-format }}
         run: |
           git pull
           if [ -n "$(git status --porcelain)" ]; then
@@ -389,6 +585,10 @@ jobs:
             git config user.name "howso-automation"
             git config user.email "support@howso.com"
             git add *.txt
+            if [[ "$LOCK_FORMAT" == "pylock" ]]; then
+              git add pylock.toml
+              git ls-files -z --deleted -- 'requirements-[0-9]*.txt' | xargs -0 -r git rm --quiet --cached --
+            fi
             if [[ "${{ inputs.regen-docs }}" == "true" ]]; then
               git add main/docstrings/*.json
             fi
