@@ -153,27 +153,42 @@ jobs:
           pip list | grep amalgam || true
           pip list | grep howso || true
 
-          # Determine site-packages location (to retrieve version.json)
-          site_packages=$(python -m site --user-site)
+          # Prints the installed path of file $2 from distribution $1, or nothing when either is not
+          # installed. Resolves through the interpreter's metadata, so packages installed with or
+          # without --user are both found, and the copy Python would import takes precedence.
+          locate_dist_file() {
+          python - "$1" "$2" <<'EOF'
+          import sys
+          from importlib.metadata import PackageNotFoundError, distribution
+          try:
+              path = distribution(sys.argv[1]).locate_file(sys.argv[2])
+          except PackageNotFoundError:
+              sys.exit(0)
+          if path.exists():
+              print(path)
+          EOF
+          }
+          amlg_version_json=$(locate_dist_file amalgam-lang amalgam/lib/version.json)
+          hse_version_json=$(locate_dist_file howso-engine howso/howso-engine/version.json)
 
           # Get amalgam metadata from version.json
           echo "Getting Amalgam metadata..."
           amlg_exists=true
           # Make sure Amalgam actually exists on the file system to avoid any errors
-          if ! [[ -e $site_packages/amalgam/lib/ ]]; then
+          if [[ -z "$amlg_version_json" ]]; then
             echo "Amalgam not found."
             amlg_exists=false
           else
-            ls -l $site_packages/amalgam/lib/
-            amlg_version=$(jq -r '.version.amalgam' $site_packages/amalgam/lib/version.json)
+            ls -l "$(dirname "$amlg_version_json")"
+            amlg_version=$(jq -r '.version.amalgam' $amlg_version_json)
             echo "Amalgam version: $amlg_version"
-            amlg_sha=$(jq -r '.version."amalgam_sha"' $site_packages/amalgam/lib/version.json)
-            amlg_url=$(jq -r '.version."amalgam_url"' $site_packages/amalgam/lib/version.json)
-            if [[ $(cat $site_packages/amalgam/lib/version.json | jq '.version | has("amalgam_build_date")') == true && $(cat $site_packages/amalgam/lib/version.json | jq '.version.amalgam_build_date') != "\"\"" ]]; then
+            amlg_sha=$(jq -r '.version."amalgam_sha"' $amlg_version_json)
+            amlg_url=$(jq -r '.version."amalgam_url"' $amlg_version_json)
+            if [[ $(cat $amlg_version_json | jq '.version | has("amalgam_build_date")') == true && $(cat $amlg_version_json | jq '.version.amalgam_build_date') != "\"\"" ]]; then
               # Version is a prerelease (workflow run)
-              build_date=$(jq -r '.version."amalgam_build_date"' $site_packages/amalgam/lib/version.json)
+              build_date=$(jq -r '.version."amalgam_build_date"' $amlg_version_json)
               build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
-              amlg_notes=$(jq -r '.version."amalgam_display_title"' $site_packages/amalgam/lib/version.json)
+              amlg_notes=$(jq -r '.version."amalgam_display_title"' $amlg_version_json)
               amlg_notes=$(python -c "notes = '$amlg_notes'.split(' -')[0] if 'PR Build' in '$amlg_notes' else '$amlg_notes'; print(notes)")
               amlg_version=$(echo "$amlg_version ($build_date)")
             else
@@ -198,7 +213,7 @@ jobs:
 
           # Optionally validate Amalgam versions
           if [[ ${{ inputs.validate-amlg-versions }} == true ]]; then
-            engine_amlg_version=$(jq -r ".dependencies.amalgam" $site_packages/howso/howso-engine/version.json)
+            engine_amlg_version=$(jq -r ".dependencies.amalgam" $hse_version_json)
             echo "Validating howso-engine Amalgam version $engine_amlg_version against amalgam-lang-py with Amalgam version $amlg_version"
             # Check major versions only
             major_ver_1=$(echo "$engine_amlg_version" | cut -d'.' -f1)
@@ -212,14 +227,14 @@ jobs:
           # Get howso-engine metadata from version.json
           # However, if Amalgam isn't present in this file system, assume Howso Engine also is not present.
           if $amlg_exists; then
-            hse_version=$(jq -r '."version"' $site_packages/howso/howso-engine/version.json)
-            hse_sha=$(jq -r '."sha"' $site_packages/howso/howso-engine/version.json)
-            hse_url=$(jq -r '."url"' $site_packages/howso/howso-engine/version.json)
-            if [[ $(cat $site_packages/howso/howso-engine/version.json | jq '. | has("build_date")') == true && $(cat $site_packages/howso/howso-engine/version.json | jq '.build_date') != "\"\"" ]]; then
+            hse_version=$(jq -r '."version"' $hse_version_json)
+            hse_sha=$(jq -r '."sha"' $hse_version_json)
+            hse_url=$(jq -r '."url"' $hse_version_json)
+            if [[ $(cat $hse_version_json | jq '. | has("build_date")') == true && $(cat $hse_version_json | jq '.build_date') != "\"\"" ]]; then
               # Version is a prerelease (workflow run)
-              build_date=$(jq -r '."build_date"' $site_packages/howso/howso-engine/version.json)
+              build_date=$(jq -r '."build_date"' $hse_version_json)
               build_date=$(python -c "from datetime import datetime; print(datetime.strptime('$build_date', '%Y-%m-%dT%H:%M:%SZ').strftime('%A, %B %d, %I:%M %p'))")
-              hse_notes=$(jq -r '."display_title"' $site_packages/howso/howso-engine/version.json)
+              hse_notes=$(jq -r '."display_title"' $hse_version_json)
               hse_notes=$(python -c "notes = '$hse_notes'.split(' -')[0] if 'PR Build' in '$hse_notes' else '$hse_notes'; print(notes)")
               hse_version=$(echo "$hse_version ($build_date)")
             else
