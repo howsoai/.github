@@ -58,12 +58,20 @@ on:
           pylock.toml with uv against Artifactory (when its secrets are available) and PyPI, covering every Python version from the lowest entry in
           python-versions upward, every platform, and the runtime dependencies plus every extra in
           extras; it regenerates only when a fingerprint of those inputs changes, keeps existing pins
-          unless force-rebuild is set, and removes any requirements-<version>[-dev].txt files. The
+          unless force-rebuild is set, removes any requirements-<version>[-dev].txt files, and rewrites
+          the standard bin/build.sh line that installs requirements-<version>-dev.txt to install
+          pylock.toml instead. The
           pylock format requires static dependencies in pyproject.toml and does not support build-system
           hatch. When empty, the caller's PYTHON_LOCK_FORMAT Actions variable is used, else "requirements".
         type: string
         required: false
         default: ""
+
+env:
+  # The standard bin/build.sh line that installs requirements-<version>-dev.txt, for example
+  # `python -m pip install -r requirements-${1}-dev.txt --user --no-deps`. The pylock format
+  # rewrites it to `python -m pip install -r pylock.toml`, keeping its indentation.
+  BUILD_SH_REQUIREMENTS_INSTALL: '^([[:space:]]*)(python -m )?pip install -r requirements-\$\{1\}-dev\.txt( +--(user|no-deps))*[[:space:]]*$'
 
 jobs:
   check-requirements:
@@ -152,6 +160,8 @@ jobs:
             changes="pylock.toml was compiled from different inputs"
           elif [[ -n "$(find . -maxdepth 1 -name 'requirements-[0-9]*.txt' -print -quit)" ]]; then
             changes="requirements-<version>[-dev].txt files are present alongside pylock.toml"
+          elif grep -Eqs "$BUILD_SH_REQUIREMENTS_INSTALL" bin/build.sh; then
+            changes="bin/build.sh installs requirements-<version>-dev.txt"
           fi
           if [[ -n "$changes" ]]; then
             echo "pylock.toml needs regenerating: $changes"
@@ -347,6 +357,13 @@ jobs:
           fi
           # pylock.toml is the only lockfile in this format
           rm -f requirements-[0-9]*.txt
+          if [[ -f bin/build.sh ]]; then
+            sed -E -i "s#${BUILD_SH_REQUIREMENTS_INSTALL}#\1python -m pip install -r pylock.toml#" bin/build.sh
+            git diff -- bin/build.sh
+            if grep -Eq 'requirements-(dev-)?(\$|[0-9])' bin/build.sh; then
+              echo "::warning file=bin/build.sh::bin/build.sh still references requirements-<version> files, which the pylock format removes; update it to install pylock.toml"
+            fi
+          fi
 
       - name: Generate third-party licenses (pylock)
         if: needs.check-requirements.outputs.lock-format == 'pylock'
@@ -587,6 +604,9 @@ jobs:
             git add *.txt
             if [[ "$LOCK_FORMAT" == "pylock" ]]; then
               git add pylock.toml
+              if [[ -f bin/build.sh ]]; then
+                git add bin/build.sh
+              fi
               git ls-files -z --deleted -- 'requirements-[0-9]*.txt' | xargs -0 -r git rm --quiet --cached --
             fi
             if [[ "${{ inputs.regen-docs }}" == "true" ]]; then
