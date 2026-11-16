@@ -57,8 +57,9 @@ on:
           requirements-<version>-dev.txt per entry in python-versions. "pylock" compiles a single
           pylock.toml with uv against Artifactory (when its secrets are available) and PyPI, covering every Python version from the lowest entry in
           python-versions upward, every platform, and the runtime dependencies plus every extra in
-          extras; it regenerates only when a fingerprint of those inputs changes, keeps existing pins
-          unless force-rebuild is set, removes any requirements-<version>[-dev].txt files, and rewrites
+          extras; it regenerates when a fingerprint of those inputs changes or force-rebuild is set,
+          resolving every package to its newest allowed version, removes any
+          requirements-<version>[-dev].txt files, and rewrites
           the standard bin/build.sh line that installs requirements-<version>-dev.txt to install
           pylock.toml instead. The
           pylock format requires static dependencies in pyproject.toml and does not support build-system
@@ -320,7 +321,6 @@ jobs:
           CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
           PYTHON_VERSIONS: ${{ inputs.python-versions }}
           EXTRAS: ${{ inputs.extras }}
-          FORCE_REBUILD: ${{ inputs.force-rebuild }}
           INPUTS_HASH: ${{ needs.check-requirements.outputs.inputs-hash }}
           UV_INDEX_JFROG_USERNAME: ${{ secrets.ARTIFACTORY_ACCESS_USER }}
           UV_INDEX_JFROG_PASSWORD: ${{ secrets.JFROG_ACCESS_TOKEN }}
@@ -342,11 +342,9 @@ jobs:
           if [[ -n "$CONSTRAINTS_FILE" ]]; then
             args+=(-c "$CONSTRAINTS_FILE")
           fi
-          # uv keeps the pins already in pylock.toml wherever they still satisfy the inputs;
-          # force-rebuild re-resolves everything to the newest allowed versions
-          if [[ "$FORCE_REBUILD" == "true" ]]; then
-            args+=(--upgrade)
-          fi
+          # Every package resolves to the newest version the inputs allow, not to the pins already
+          # in pylock.toml
+          args+=(--upgrade)
           uv pip compile "${args[@]}"
           # Record the inputs fingerprint that the check-requirements job compares against
           { echo "# inputs-sha256: $INPUTS_HASH"; grep -v '^# inputs-sha256:' pylock.toml; } > pylock.toml.new
