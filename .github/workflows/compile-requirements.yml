@@ -63,7 +63,7 @@ on:
           the standard bin/build.sh line that installs requirements-<version>-dev.txt to install
           pylock.toml instead. The
           pylock format requires static dependencies in pyproject.toml and does not support build-system
-          hatch. When empty, the caller's PYTHON_LOCK_FORMAT Actions variable is used, else "requirements".
+          hatch. Repos with requirements.in and no pyproject.toml use the requirements format. When empty, the caller's PYTHON_LOCK_FORMAT Actions variable is used, else "requirements".
         type: string
         required: false
         default: ""
@@ -100,6 +100,12 @@ jobs:
             echo "::error::lock-format must be 'requirements' or 'pylock', got '$LOCK_FORMAT'"
             exit 1
           fi
+          # pylock.toml is compiled from pyproject.toml; repos with only requirements.in use the
+          # requirements format
+          if [[ "$LOCK_FORMAT" == "pylock" && ! -e pyproject.toml && -e requirements.in ]]; then
+            echo "::notice::No pyproject.toml found; using lock-format requirements for requirements.in"
+            LOCK_FORMAT=requirements
+          fi
           echo "Lock format: $LOCK_FORMAT"
           echo "format=$LOCK_FORMAT" >> "$GITHUB_OUTPUT"
 
@@ -113,7 +119,7 @@ jobs:
           EXTRAS: ${{ inputs.extras }}
         run: |
           if [[ ! -e "pyproject.toml" ]]; then
-            echo "::error::lock-format pylock requires a pyproject.toml"
+            echo "::error::lock-format pylock requires a pyproject.toml or requirements.in"
             exit 1
           fi
           if [[ "$BUILD_SYSTEM" == "hatch" ]]; then
