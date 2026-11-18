@@ -418,129 +418,155 @@ jobs:
           "$venv_bin/python" -m pip install pip-licenses
           "$venv_bin/pip-licenses" --with-authors --with-urls --with-license-file --with-description --format=plain-vertical > ./LICENSE-3RD-PARTY.txt
 
+      - name: List Python versions
+        if: needs.check-requirements.outputs.lock-format == 'requirements' && (inputs.build-system == 'setuptools' || inputs.build-system == 'uv')
+        id: python-versions
+        env:
+          PYTHON_VERSIONS: ${{ inputs.python-versions }}
+        run: |
+          # actions/setup-python takes one version per line
+          {
+            echo "versions<<EOF"
+            tr ' ' '\n' <<< "$PYTHON_VERSIONS" | grep .
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python (setuptools|uv)
+        if: needs.check-requirements.outputs.lock-format == 'requirements' && (inputs.build-system == 'setuptools' || inputs.build-system == 'uv')
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ steps.python-versions.outputs.versions }}
+          allow-prereleases: true
+
       - name: Compile requirements (setuptools|uv)
         if: needs.check-requirements.outputs.lock-format == 'requirements' && (inputs.build-system == 'setuptools' || inputs.build-system == 'uv')
         id: compile-requirements-setuptools
         env:
           CONSTRAINTS_FILE: ${{ inputs.constraints-file }}
+          PYTHON_VERSIONS: ${{ inputs.python-versions }}
+          BUILD_SYSTEM: ${{ inputs.build-system }}
+          EXTRAS: ${{ inputs.extras }}
+          DEV_REQ_FILE: ${{ needs.check-requirements.outputs.dev_req_file }}
+          ARTIFACTORY_ACCESS_USER: ${{ secrets.ARTIFACTORY_ACCESS_USER }}
+          JFROG_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
         run: |
-          # Pull latest changes
           git pull
-          # Install pyenv & Python build dependencies
-          sudo apt update; sudo apt install build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev -y
-          echo "Installing pyenv"
-          curl https://pyenv.run | bash
-          export PYENV_ROOT="$HOME/.pyenv"
-          
-          echo "PYENV_ROOT=$HOME/.pyenv" >> $GITHUB_ENV
-          echo "$PYENV_ROOT/bin" >> $GITHUB_PATH
-          echo "$PYENV_ROOT/shims" >> $GITHUB_PATH
-          command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
-          eval "$(pyenv init -)"
-          # Collect the pip constraints argument, if a constraints file is configured
           constraint_args=()
           if [[ -n "$CONSTRAINTS_FILE" ]]; then
             constraint_args=(-c "$CONSTRAINTS_FILE")
             echo "Applying lockfile constraints from $CONSTRAINTS_FILE:"
             cat "$CONSTRAINTS_FILE"
           fi
-          # Compile requirements
-          IFS=' ' read -r -a versions <<< "${{ inputs.python-versions }}"
-          for version in "${versions[@]}"; do
-            echo "Installing Python $version"
-            # Install Python
-            pyenv install $version
-            pyenv local $version
-            python --version
-            # Later versions of pip break pip requirements generation
-            python -m pip install pip==25.2
-
-            if [[ "${{ inputs.build-system }}" == "uv" ]]; then
-              proc="uv pip compile"
-              # uv doesn't use --resolver or --allow-unsafe; --no-emit-index-url is supported.
-              # pip is left out of the output so a pinned pip installed with --user cannot
-              # shadow the runner's pip and break its `pip` console script.
-              args="--no-emit-index-url --no-emit-package pip"
-              # Must install it
-              python -m pip install "uv<1.0"
-            else
-              # Install pip-tools and run pip-compile
-              pip install -U pip-tools==7.4.1
-              proc=pip-compile
-              # --unsafe-package pip makes pip the only "unsafe" package, so setuptools is
-              # pinned normally and pip is written as a comment rather than a pin. A pinned
-              # pip installed with --user would shadow the runner's pip and break its `pip`
-              # console script whenever the two versions use different entry points.
-              args="--resolver=backtracking --no-emit-index-url --unsafe-package pip"
-            fi
-
-            bash -l
-            # Set extra index URL
-            if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
-              export PIP_EXTRA_INDEX_URL="https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
-            fi
-            if [[ "${{ needs.check-requirements.outputs.dev_req_file }}" == "requirements-dev.in" ]]; then
-              cat requirements.in
-              $proc requirements.in --upgrade $args "${constraint_args[@]}" -o requirements-$version.txt -v
-              $proc requirements-dev.in requirements.in --upgrade $args "${constraint_args[@]}" -o requirements-$version-dev.txt -v
-            else
-              # uv pip compile requires an explicit source file; pip-compile auto-discovers pyproject.toml
-              if [[ "${{ inputs.build-system }}" == "uv" ]]; then
-                compile_src="pyproject.toml"
-              else
-                compile_src=""
-              fi
-              $proc $compile_src --upgrade $args "${constraint_args[@]}" -o requirements-$version.txt -vv
-              # Check to see if any requirements were actually generated; don't commit "empty" requirements files
-              if [[ $(wc -l <requirements-$version.txt) -le 7 ]]; then
-                cat requirements-$version.txt
-                echo "Removing empty requirements-$version.txt as it is empty."
-                rm -f requirements-$version.txt
-              fi
-              # Generate dev/other extras requirements (pyproject.toml only)
-              if [[ -e "pyproject.toml" ]]; then
-                extras=""
-                for extra in ${{ inputs.extras }}; do
-                  extras+="--extra $extra "
-                done
-                echo "Got extras: $extras"
-                # Only generate dev requirements if there are extras
-                if [[ -n "$extras" ]]; then
-                  $proc $compile_src $extras --upgrade $args "${constraint_args[@]}" -o requirements-$version-dev.txt -vv
-                fi
-              fi
-            fi
+          if [[ -n "$JFROG_ACCESS_TOKEN" ]]; then
+            export PIP_EXTRA_INDEX_URL="https://${ARTIFACTORY_ACCESS_USER}:${JFROG_ACCESS_TOKEN}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
+          fi
+          extra_args=()
+          for extra in $EXTRAS; do
+            extra_args+=(--extra "$extra")
           done
+          if [[ "$BUILD_SYSTEM" == "uv" ]]; then
+            python -m pip install "uv<1.0"
+          fi
+
+          # Writes requirements-$1.txt and requirements-$1-dev.txt, resolved on the Python $1 that
+          # actions/setup-python installed as python$1
+          compile_version() {
+            set -e
+            local version=$1 py
+            if ! py=$(command -v "python$version"); then
+              echo "python$version is not installed"
+              return 1
+            fi
+            local proc args compile_src
+            if [[ "$BUILD_SYSTEM" == "uv" ]]; then
+              # UV_PYTHON keeps the interpreter path out of the generated file header
+              proc=(env "UV_PYTHON=$py" python -m uv pip compile)
+              # pip is left out of the output so a pinned pip installed with --user cannot shadow
+              # the runner's pip and break its `pip` console script.
+              args=(--no-emit-index-url --no-emit-package pip)
+              # uv pip compile requires an explicit source file
+              compile_src=(pyproject.toml)
+            else
+              # pip-tools 7.4.1 does not support pip releases after 25.2
+              "$py" -m pip install --quiet pip==25.2 pip-tools==7.4.1
+              proc=("$py" -m piptools compile)
+              # --unsafe-package pip makes pip the only "unsafe" package, so setuptools is pinned
+              # normally and pip is written as a comment rather than a pin. A pinned pip installed
+              # with --user would shadow the runner's pip and break its `pip` console script
+              # whenever the two versions use different entry points.
+              args=(--resolver=backtracking --no-emit-index-url --unsafe-package pip)
+              # pip-compile discovers pyproject.toml or setup.py itself
+              compile_src=()
+            fi
+
+            if [[ "$DEV_REQ_FILE" == "requirements-dev.in" ]]; then
+              "${proc[@]}" requirements.in --upgrade "${args[@]}" "${constraint_args[@]}" -o "requirements-$version.txt" -v
+              "${proc[@]}" requirements-dev.in requirements.in --upgrade "${args[@]}" "${constraint_args[@]}" -o "requirements-$version-dev.txt" -v
+              return
+            fi
+            "${proc[@]}" "${compile_src[@]}" --upgrade "${args[@]}" "${constraint_args[@]}" -o "requirements-$version.txt" -vv
+            # A file with only the pip-compile header pins nothing and is not committed
+            if [[ $(wc -l < "requirements-$version.txt") -le 7 ]]; then
+              cat "requirements-$version.txt"
+              echo "Removing requirements-$version.txt as it is empty."
+              rm -f "requirements-$version.txt"
+            fi
+            # Extras exist only in pyproject.toml
+            if [[ -e pyproject.toml && ${#extra_args[@]} -gt 0 ]]; then
+              "${proc[@]}" "${compile_src[@]}" "${extra_args[@]}" --upgrade "${args[@]}" "${constraint_args[@]}" -o "requirements-$version-dev.txt" -vv
+            fi
+          }
+
+          # Each Python version compiles in parallel; its output is printed in its own group once
+          # all of them finish
+          read -r -a versions <<< "$PYTHON_VERSIONS"
+          pids=()
+          for version in "${versions[@]}"; do
+            compile_version "$version" > "$RUNNER_TEMP/compile-$version.log" 2>&1 &
+            pids+=($!)
+          done
+          failed=()
+          for i in "${!versions[@]}"; do
+            version=${versions[$i]}
+            if ! wait "${pids[$i]}"; then
+              failed+=("$version")
+            fi
+            echo "::group::Python $version"
+            cat "$RUNNER_TEMP/compile-$version.log"
+            echo "::endgroup::"
+          done
+          if [[ ${#failed[@]} -gt 0 ]]; then
+            echo "::error::Requirements compilation failed for Python ${failed[*]}"
+            exit 1
+          fi
 
       - name: Generate third-party licenses (setuptools)
         if: needs.check-requirements.outputs.lock-format == 'requirements' && (inputs.build-system == 'setuptools' || inputs.build-system == 'uv')
         id: gen-licenses-setuptools
+        env:
+          LICENSE_PYTHON_VERSION: ${{ inputs.license-python-version }}
+          ARTIFACTORY_ACCESS_USER: ${{ secrets.ARTIFACTORY_ACCESS_USER }}
+          JFROG_ACCESS_TOKEN: ${{ secrets.JFROG_ACCESS_TOKEN }}
         run: |
-          which python
-          eval "$(pyenv init -)"
-          # Install the lockfile on the Python it was compiled for: its pins can carry
-          # python_version markers (from constraints-file) that skip packages on other Pythons.
-          pyenv install --skip-existing ${{ inputs.license-python-version }}
-          pyenv local ${{ inputs.license-python-version }}
-          # Later versions of pip break pip requirements generation
-          python -m pip install pip==25.2
-          python --version
-          pip list
           rm -f ./LICENSE-3RD-PARTY.txt
-          # Set extra index URL
-          if [[ -n "${{ secrets.JFROG_ACCESS_TOKEN }}" ]]; then
-            export PIP_EXTRA_INDEX_URL="https://${{ secrets.ARTIFACTORY_ACCESS_USER }}:${{ secrets.JFROG_ACCESS_TOKEN }}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
-          fi
-          if [[ -e "requirements-${{ inputs.license-python-version }}.txt" ]]; then
-            python -m pip install -r requirements-${{ inputs.license-python-version }}.txt --no-deps
-          else
-            echo "No main requirements.txt file found."
+          requirements="requirements-$LICENSE_PYTHON_VERSION.txt"
+          if [[ ! -e "$requirements" ]]; then
+            echo "No $requirements found."
             exit 0
           fi
+          if [[ -n "$JFROG_ACCESS_TOKEN" ]]; then
+            export PIP_EXTRA_INDEX_URL="https://${ARTIFACTORY_ACCESS_USER}:${JFROG_ACCESS_TOKEN}@dpbuild.jfrog.io/artifactory/api/pypi/pypi-edge/simple"
+          fi
+          # The lockfile installs on the Python it was compiled for, since its pins can carry
+          # python_version markers (from constraints-file) that skip packages on other Pythons. The
+          # venv holds only the lockfile's packages, so the license file lists nothing else.
+          "python$LICENSE_PYTHON_VERSION" -m venv "$RUNNER_TEMP/licenses"
+          venv_bin="$RUNNER_TEMP/licenses/bin"
+          "$venv_bin/python" -m pip install -r "$requirements" --no-deps
           # Do not include Howso software in the 3rd party license file
-          pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
-          pip install pip-licenses
-          pip-licenses --with-authors --with-urls --with-license-file --with-description --format=plain-vertical  > ./LICENSE-3RD-PARTY.txt
+          "$venv_bin/python" -m pip uninstall amalgam-lang howso-engine howso-synthesizer howso-validator howso-validator-enterprise howso-visuals howso-openapi-client -y
+          "$venv_bin/python" -m pip install pip-licenses
+          "$venv_bin/pip-licenses" --with-authors --with-urls --with-license-file --with-description --format=plain-vertical > ./LICENSE-3RD-PARTY.txt
 
       - name: Set up Python
         if: needs.check-requirements.outputs.lock-format == 'requirements' && inputs.build-system == 'hatch'
