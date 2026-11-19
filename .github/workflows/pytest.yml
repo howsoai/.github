@@ -348,11 +348,67 @@ jobs:
           java-version: ${{ inputs.java-version }}
           distribution: temurin
 
-      - uses: vemonet/setup-spark@v1
+      # The Spark binary is kept in the Actions cache: releases no longer on dlcdn.apache.org are only
+      # served by archive.apache.org, which is throttled heavily enough to take 20+ minutes per download.
+      - name: Restore Spark from cache
         if: inputs.enable-spark == true
+        id: spark-cache
+        uses: actions/cache/restore@v5
         with:
-          spark-version: ${{ inputs.spark-version }}
-          hadoop-version: "3"
+          path: ${{ runner.temp }}/spark-${{ inputs.spark-version }}-bin-hadoop3
+          key: spark-${{ inputs.spark-version }}-bin-hadoop3-${{ runner.os }}
+
+      - name: Download Spark
+        if: inputs.enable-spark == true && steps.spark-cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          SPARK_VERSION: ${{ inputs.spark-version }}
+        run: |
+          set -euo pipefail
+          tgz="spark-${SPARK_VERSION}-bin-hadoop3.tgz"
+          for base in https://dlcdn.apache.org/spark https://archive.apache.org/dist/spark; do
+            url="$base/spark-${SPARK_VERSION}/$tgz"
+            echo "Downloading $url"
+            if curl -fsSL --retry 3 -o "$RUNNER_TEMP/$tgz" "$url"; then
+              tar -xzf "$RUNNER_TEMP/$tgz" -C "$RUNNER_TEMP"
+              rm "$RUNNER_TEMP/$tgz"
+              exit 0
+            fi
+          done
+          echo "::error::Spark $SPARK_VERSION could not be downloaded from any Apache source"
+          exit 1
+
+      # Saved right away rather than at job end, so a failing test run still populates the cache.
+      - name: Save Spark to cache
+        if: inputs.enable-spark == true && steps.spark-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ runner.temp }}/spark-${{ inputs.spark-version }}-bin-hadoop3
+          key: ${{ steps.spark-cache.outputs.cache-primary-key }}
+
+      - name: Set up Spark environment
+        if: inputs.enable-spark == true
+        shell: bash
+        env:
+          SPARK_VERSION: ${{ inputs.spark-version }}
+          SPARK_DIR: ${{ runner.temp }}/spark-${{ inputs.spark-version }}-bin-hadoop3
+        run: |
+          set -euo pipefail
+          if [[ ! -x "$SPARK_DIR/bin/spark-submit" ]]; then
+            echo "::error::spark-submit not found in $SPARK_DIR"
+            exit 1
+          fi
+          py4j_zip=$(ls "$SPARK_DIR"/python/lib/py4j-*-src.zip)
+          {
+            echo "SPARK_HOME=$SPARK_DIR"
+            echo "HADOOP_VERSION=3"
+            echo "APACHE_SPARK_VERSION=$SPARK_VERSION"
+            echo "PYSPARK_PYTHON=python"
+            echo "PYSPARK_DRIVER_PYTHON=python"
+            echo "PYTHONPATH=$SPARK_DIR/python:$py4j_zip"
+            echo "SPARK_OPTS=--driver-java-options=-Xms1024M --driver-java-options=-Xmx2048M --driver-java-options=-Dlog4j.logLevel=info"
+          } >> "$GITHUB_ENV"
+          echo "$SPARK_DIR/bin" >> "$GITHUB_PATH"
 
       - name: Enable Postgres
         if: inputs.enable-postgres == true
